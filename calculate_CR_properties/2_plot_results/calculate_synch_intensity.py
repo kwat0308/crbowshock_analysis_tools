@@ -56,11 +56,14 @@ with h5py.File(f"{data_dir}/steady_state_spectrum_thr.h5", "r") as f:
     log10_Blos_grid = f["synch_emission"]["log10_Blos_grid"][()]
     synch_freq = f["synch_emission"]["synch_freq"][()] * u.GHz
     log10_ensynch_grid_full = f["synch_emission"]["log10_ensynch_grid"][()]
+    log10_ene_grid_full = f["synch_emission"]["log10_ene_grid"][()]
 
 log10_ensynch_grid = log10_ensynch_grid_full[:,np.digitize(np.log10(kappa_10.value), log10_kappa10_grid, right=True), np.digitize(np.log10(R0.value), log10_R0_grid, right=True),:,:,:]
+# log10_ene_grid = log10_ene_grid_full[:,np.digitize(np.log10(kappa_10.value), log10_kappa10_grid, right=True), np.digitize(np.log10(R0.value), log10_R0_grid, right=True),:,:]
 
 # first interpolate the enratio grid
-f_log10ensynch_ratio = RegularGridInterpolator((alpha_inj_grid, log10_vel_grid,log10_dens_grid, log10_Blos_grid), log10_ensynch_grid)
+f_log10_ensynchratio = RegularGridInterpolator((alpha_inj_grid, log10_vel_grid,log10_dens_grid, log10_Blos_grid), log10_ensynch_grid)
+# f_log10_eneratio = RegularGridInterpolator((alpha_inj_grid, log10_vel_grid,log10_dens_grid), log10_ene_grid)
 
 
 if not os.path.exists(f"{fig_dir}/{sim_name}"):
@@ -85,8 +88,8 @@ for sim_file in sim_files:
     with h5py.File(f"{flash_output_dir}/{sim_name}/{sim_file}", "r") as pf:
         shma_data = pf["shma"][()][blist]
         dens_data = pf["dens"][()][blist] * (u.g / u.cm**3)
-        vel_data = [pf["velx"][()][blist], pf["vely"][()][blist], pf["velz"][()][blist]] 
-        magz_data = pf["magz"][()][blist] * u.G
+        vel_data = [pf["velx"][()][blist], pf["vely"][()][blist], pf["velz"][()][blist]] * (u.cm / u.s)
+        mag_data = [pf["magx"][()][blist], pf["magy"][()][blist], pf["magz"][()][blist]]  * u.G
         encr_data = pf["encr"][()][blist] * (u.erg / u.g)
         ref_lvl = pf["refine level"][()][blist]
         bbox = pf["bounding box"][()][blist]
@@ -105,17 +108,28 @@ for sim_file in sim_files:
     alpha_inj_data[alpha_inj_data >= 10] = 10  # similarly
 
     # computing velocity magnitude3
-    vel_mag_data = np.sqrt(vel_data[0]**2 + vel_data[1]**2 + vel_data[2]**2) * (u.cm / u.s)
+    vel_mag_data = np.sqrt(vel_data[0]**2 + vel_data[1]**2 + vel_data[2]**2)
 
-    # LoS magnetic field  ==  z-axis
-    Blos_data = np.abs(magz_data)
+    # first get electron number density
+    # eneratio_data = 10.0**f_log10_eneratio((alpha_inj_data, np.log10(vel_mag_data.to_value(u.km/u.s)), np.log10(dens_data.to_value(u.g / u.cm**3)))) * u.GeV
+    # necr_data = (encr_data * dens_data / eneratio_data).to(u.cm**-3)
+    # del eneratio_data
+
+    # LoS magnetic field  ==  z-axis -> transverse is Bx and By contributions
+    Blos_data = np.abs(mag_data[0]) + np.abs(mag_data[1])
     Blos_data[Blos_data < 1e-9 * u.G] = 1e-9 * u.G
 
     # encr to nele_synch ratio
-    ensynch_ratio = 10.0**f_log10ensynch_ratio((alpha_inj_data, np.log10(vel_mag_data.to_value(u.km/u.s)), np.log10(dens_data.to_value(u.g / u.cm**3)), np.log10(Blos_data.to_value(u.G)))) * u.GeV
+    ensynchratio_data = 10.0**f_log10_ensynchratio((alpha_inj_data, np.log10(vel_mag_data.to_value(u.km/u.s)), np.log10(dens_data.to_value(u.g / u.cm**3)), np.log10(Blos_data.to_value(u.G)))) * u.GeV
 
     # nele_synch_data
-    nelesynch_data = (encr_data * dens_data / ensynch_ratio).to(u.cm**-3)
+    nelesynch_data = (encr_data * dens_data / ensynchratio_data).to(u.cm**-3)
+
+    del dens_data
+    del encr_data
+    del vel_mag_data
+    del xs_data
+    del ensynchratio_data
 
     # plot this
     # finally plot the slice
@@ -200,3 +214,4 @@ for sim_file in sim_files:
     fig.savefig(f"{fig_dir}/{sim_name}/synch_intens/axis{args.axis}/synch_intens_sl_axis{args.axis}_{sim_file[-4:]}.png")
 
     plt.close(fig)
+        
