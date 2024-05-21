@@ -43,7 +43,8 @@ pprot_grid = (10.0**log10_pprot_grid * (u.cm * u.g / u.s))
 pprot_grid_calc = pprot_grid[:,None,None,None,None,None]
 pele_grid = pele(pprot_grid)
 pele_grid = pele_grid[ekin(pele_grid, m=me) > 1 * u.GeV]  # get only GeV electrons
-pele_grid_calc = pele(pprot_grid_calc)
+pele_grid_calc = pele_grid[:,None,None,None,None,None]
+
 
 # interpolate over momentum only 
 f_steady_state = CubicSpline(y=steady_state_mom_grid, x=pprot_grid.cgs.value, axis=0)
@@ -54,7 +55,7 @@ Blos_interp_grid = np.logspace(-10, -4, 100) * u.G
 
 log10_ensynch_grid = np.zeros((len(alpha_inj_grid), len(log10_vel_grid), len(log10_kappa10_grid), len(log10_R0_grid), len(log10_dens_grid), len(Blos_interp_grid)))
 
-encr_grid = np.trapz(y=4 * np.pi * pprot_grid_calc**2 * ekin(pprot_grid_calc) * steady_state_ele_grid, x=pprot_grid, axis=0)
+encr_grid = np.trapz(y=4 * np.pi * pprot_grid_calc**2 * ekin(pprot_grid_calc) * steady_state_mom_grid, x=pprot_grid, axis=0)
 log10_ene_grid = np.log10((encr_grid / np.trapz(y=4 * np.pi * pele_grid_calc**2 * steady_state_ele_grid, x=pele_grid, axis=0)).to_value(u.GeV))
 
 for ib, Blos in enumerate(Blos_interp_grid):
@@ -64,9 +65,11 @@ for ib, Blos in enumerate(Blos_interp_grid):
     log10_ensynch_grid[...,ib] = np.log10((encr_grid / nelesynch).to_value(u.GeV))
 
 with h5py.File(f"{data_dir}/steady_state_spectrum_thr.h5", "a") as f:
+    if "synch_emission" in list(f.keys()):
+        del f["synch_emission"]
     synch = f.create_group("synch_emission")
     synch.create_dataset("log10_Blos_grid", data=np.log10(Blos_interp_grid.to_value(u.G)))
     synch.create_dataset("synch_freq", data=synch_freq.to_value(u.GHz))
     synch.create_dataset("log10_ensynch_grid", data=log10_ensynch_grid)
-    synch.create_dataset("log10_pele_grid", np.log10(pele_grid))
+    synch.create_dataset("log10_pele_grid", data=np.log10(pele_grid.cgs.value))
     synch.create_dataset("log10_ene_grid", data=log10_ene_grid)

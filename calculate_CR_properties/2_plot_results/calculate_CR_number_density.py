@@ -141,6 +141,6 @@ for sim_file in sim_files:
     cb.ax.tick_params(axis='both', which='minor', size=6, labelsize=18)
 
     # save
-    fig.savefig(f"{fig_dir}/{sim_name}/ncr/axis{args.axis}/ncr_sl_axis{args.axis}_{sim_file[-4:]}.png")
+    fig.savefig(f"{fig_dir}/{sim_name}/ncr/axis{args.axis}/ncr_sl_axis{args.axis}_{sim_file[-4:]}.png", bbox_inches="tight", dpi=300)
 
     plt.close(fig)
