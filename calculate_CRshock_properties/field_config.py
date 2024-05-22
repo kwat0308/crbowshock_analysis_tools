@@ -13,21 +13,24 @@ field_labels = {
     "encr" : "$\epsilon_\mathrm{CR}$ / erg cm$^{-3}$",
     "mgob": r"$\theta_B$ / deg",
     "crac": r"$\eta(\mathcal{M}_1, \theta_B)$",
+    "geff":r"$\gamma_\mathrm{eff}$"
 }
 field_lims = {
     "dens" : [5e-29, 5e-21],
     "shma" : {
-        "outer":[0.0, 15],
+        "outer":[0.0, 7],
         "term":[0.0, 35],
     },
     "encr":[1e-16, 1e-10],
     "mgob" : [0.0, 90.0],
     "crac": [0.0, 1.0],
+    "geff":[1.3, 1.7],
 }
 field_scales = {
     "dens":"log",
     "encr":"log",
     "shma":"linear",
     "crac":"linear",
-    "mgob":"linear"
+    "mgob":"linear",
+    "geff":"linear"
 }

@@ -1,6 +1,6 @@
 
 bowshock_config = {
-    "BowShock_HarpISM_m20": {
+    "BowShock_HarpISM": {
         "sim_label":"HarpISM",
         "mstar":20,
         "vstar":30,

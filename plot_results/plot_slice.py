@@ -46,6 +46,10 @@ for file in os.listdir(f"{flash_output_dir}/{sim_dir}"):
 # sort 
 sim_files = sorted(sim_files)[::-1]
 
+# truncate to every 10 plot files if we have over 200 plot files
+if len(sim_files) > 200:
+    sim_files = sim_files[::10]
+
 # loop over each file and get the slice
 for sim_file in sim_files:
     print(sim_file)

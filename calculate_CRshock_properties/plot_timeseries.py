@@ -27,7 +27,7 @@ flash_output_dir = "/home/watanabe/Projects/meerkat_bowshocks/outputs"
 sim_name = args.sim_name
 sim_label = bowshock_config[args.sim_name]["sim_label"]
 shock_label = bow_shock_labels[args.shock]
-fields = ["dens", "encr", "shma", "crac", "mgob"]
+fields = ["shma", "geff"]
 thetas = [[0, 10], [10,30], [30,60], [60,90], [90,120], [120,180]]
 theta_colors = ["royalblue", "forestgreen", "indianred", "purple", "goldenrod", "hotpink"]
 
@@ -86,14 +86,14 @@ for field in fields:
         R, TH, _, _ = get_polar_grid(field_cube.shape, bbox)
 
         for ith, (th_min, th_max) in enumerate(thetas):
-            field_aziavgs[it, ith] = np.mean(field_cube[(shck_mask_cube == True) & (TH > np.deg2rad(th_min)) & (TH < np.deg2rad(th_max))])
+            field_aziavgs[it, ith] = np.mean(field_cube[(shck_mask_cube == True) & (TH >= np.deg2rad(th_min)) & (TH < np.deg2rad(th_max))])
 
     # finally plot it all
     times = (times * u.s).to(u.kyr)
     fig, ax = plt.subplots(figsize=(8,6))
 
     for ith, (th_min, th_max) in enumerate(thetas):
-        ax.plot(times, field_aziavgs[:,ith], label=rf"{th_min}$^\circ$ < $\theta$ < {th_max}$^\circ$", color=theta_colors[ith])
+        ax.plot(times, field_aziavgs[:,ith], label=rf"{th_min}$^\circ$ $\leq$ $\theta$ < {th_max}$^\circ$", color=theta_colors[ith])
 
     # labels
     ax.set_xlabel("Time / kyr", fontsize=16)

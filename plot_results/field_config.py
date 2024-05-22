@@ -19,7 +19,8 @@ field_labels = {
     "encr" : "$\epsilon_\mathrm{CR}$ / erg cm$^{-3}$",
     "mgob": r"$\theta_B$ / deg",
     "crac": r"$\eta(\mathcal{M}_1, \theta_B)$",
-    "plasma_beta":r"$\beta = \sqrt{P_\mathrm{th} / P_\mathrm{mag}}$"
+    "plasma_beta":r"$\beta = \sqrt{P_\mathrm{th} / P_\mathrm{mag}}$",
+    "geff":r"$\gamma_\mathrm{eff}$",
 }
 field_cmaps = {
     "dens" : cm.Oranges,
@@ -36,6 +37,7 @@ field_cmaps = {
     "mgob" : cm.viridis,
     "crac":cm.Reds_r,
     "plasma_beta": cm.PiYG,
+    "geff":cm.cividis
 }
 field_lims = {
     "dens" : [5e-29, 5e-21],
@@ -50,4 +52,5 @@ field_lims = {
     "mgob" : [0.0, 90.0],
     "crac": [0.0, 1.0],
     "plasma_beta" : [1e-3, 1e3],
+    "geff":[1.2, 1.9],
 }
