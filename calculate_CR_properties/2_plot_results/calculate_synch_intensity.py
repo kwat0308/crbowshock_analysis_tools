@@ -132,9 +132,9 @@ for i, sim_name in enumerate(list(bowshock_config.keys())):
         del xs_data
         del ensynchratio_data
 
-        # plot the synchrotron intensity -> E dN/(dV dt dnu), in units of erg / s / cm^3 / Hz
+        # plot the synchrotron intensity -> E dN/(dV dt), in units of erg / s / cm^3
         # NB: astropy doesnt properly take care of cgs units with magnetic fields, so we convert them to values instead and add units later
-        synch_coeff = np.sqrt(3) * Blos_data.to_value(u.G) * const.e.gauss.value**3 / (const.m_e.cgs.value * const.c.cgs.value**2)
+        synch_coeff = np.sqrt(3) * Blos_data.to_value(u.G) * const.e.gauss.value**3 / (const.m_e.cgs.value * const.c.cgs.value**2) * synch_freq.to_value(u.Hz)
         synch_intens_data = synch_coeff * (u.erg * u.s**-1) * nelesynch_data
 
         if isim % 50 == 0 and isim != 0:
@@ -180,7 +180,7 @@ for i, sim_name in enumerate(list(bowshock_config.keys())):
             # create imshow of this
             fig, ax = plt.subplots(figsize=(8,8))
 
-            norm = mcolors.LogNorm(vmin=1e-50, vmax=1e-30, clip=True)
+            norm = mcolors.LogNorm(vmin=1e-50, vmax=1e-25, clip=True)
 
             im = ax.imshow(synch_intens_sl.T, norm=norm, cmap=cm.cividis, origin="lower", extent=extent)
             ax.scatter(0, 0, s=5.0, color="k")  # star
