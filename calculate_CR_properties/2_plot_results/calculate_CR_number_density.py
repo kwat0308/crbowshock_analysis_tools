@@ -75,6 +75,10 @@ for file in os.listdir(f"{flash_output_dir}/{sim_name}"):
 # sort 
 sim_files = sorted(sim_files)
 
+# truncate to every 10 plot files if we have over 200 plot files
+if len(sim_files) > 200:
+    sim_files = sim_files[::10]
+
 # loop over each file and get the slice
 for sim_file in sim_files:
     blist, brefs, bns = flash_amr_tools.get_true_blocks(f"{flash_output_dir}/{sim_name}/{sim_file}")
