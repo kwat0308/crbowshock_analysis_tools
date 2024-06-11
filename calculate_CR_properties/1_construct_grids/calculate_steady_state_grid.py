@@ -97,26 +97,6 @@ results = Parallel(n_jobs=2)(delayed(get_steady_state)(arg) for arg in args)
 for ia, steady_state_tmp in enumerate(results):
     steady_state_grid[:,ia,...] = steady_state_tmp
 
-# for ia in tqdm(range(len(alpha_inj_grid)), desc="Computing steady state spectrum over alpha_inj", total=len(alpha_inj_grid)):
-#     alpha_inj = alpha_inj_grid[ia]
-#     inj_spectrum_grid = inj_spect(ekin_arr, alpha_inj)
-
-#     for ik, ir, iv, id in itertools.product(range(len(kappa_10_grid)), range(len(R0_grid)), range(len(vel_grid)), range(len(dens_grid)), desc="Computing Green Function Integral"):
-
-#         R0 = R0_grid[ir]
-#         kappa_10 = kappa_10_grid[ik]
-#         vel = vel_grid[iv]
-#         rho = dens_grid[id]
-
-#         tau_adv = (R0 / vel).to_value(u.s)
-#         taudiff_coeff =  (R0**2 / kappa_10 * e0**delta).to_value(u.s)
-#         bhadr_coeff = (B_hadr * rho).to_value(u.s**-1)
-
-#         # analytical function
-#         for ie, e in enumerate(ekin_arr):
-#             green_int = bhadr_coeff**-1 * (tau_adv**-1 * np.log(ekin_arr / e) + (taudiff_coeff**-1 / delta) * (ekin_arr**delta - e**delta) )
-#             steady_state_grid[ie,ia,ik,ir,iv,id] = np.trapz(inj_spectrum_grid[ie:,...] * (bhadr_coeff * ekin_arr[ie:])**-1 * np.exp(-green_int[ie:]), x=ekin_arr[ie:], axis=0)
-
 
 pprot_grid = mom(ekin_arr)
 pprot_grid_calc = pprot_grid[:,None,None,None,None,None]

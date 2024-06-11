@@ -15,7 +15,7 @@ import flash_amr_tools
 
 flash_output_dir = "/home/watanabe/Projects/meerkat_bowshocks/outputs"
 fig_dir = "/home/watanabe/Projects/meerkat_bowshocks/figures"
-data_dir = "/home/watanabe/Projects/meerkat_bowshocks/meerkat_nrfs/meerkat_nrfs/data/"
+data_dir = "/home/watanabe/Projects/meerkat_bowshocks/crbowshock_analysis_tools/data"
 
 sigma_pp = 44 * u.mbarn  # total pion cross section
 Kp = 0.5  # inelasticity
@@ -25,23 +25,17 @@ Bhadr_coeff = (const.c.cgs * sigma_pp * Kp / (const.m_p.cgs * mol_weight)).cgs  
 if not os.path.exists(f"{fig_dir}/gamma"):
     os.mkdir(f"{fig_dir}/gamma")
 
-fig_tseries, ax_tseries = plt.subplots(figsize=(8,6))
-
 for i, sim_name in enumerate(list(bowshock_config.keys())):
 
-    sim_label = bowshock_config[sim_name]["sim_label"]
+    sim_dir = bowshock_config[sim_name]['sim_dir']
     mstar = bowshock_config[sim_name]["mstar"] * u.Msun
     vstar = bowshock_config[sim_name]["vstar"] * (u.km/u.s)
     env_name = bowshock_config[sim_name]["env_name"]
     kappa_10 = bowshock_config[sim_name]["kappa_10"] * (u.cm**2 / u.s)
 
-
-    if not os.path.exists(f"{fig_dir}/{sim_name}"):
-        os.mkdir(f"{fig_dir}/{sim_name}")
-
     # get list of all files
     sim_files = []
-    for file in os.listdir(f"{flash_output_dir}/{sim_name}"):
+    for file in os.listdir(f"{flash_output_dir}/{sim_dir}"):
         if file.find("plt") < 0 or file.find("forced") > 0 or file.find("0000") > 0:
             continue
         sim_files.append(file)
@@ -56,9 +50,9 @@ for i, sim_name in enumerate(list(bowshock_config.keys())):
 
     # loop over each file and get the slice
     for isim, sim_file in enumerate(sim_files):
-        blist, brefs, bns = flash_amr_tools.get_true_blocks(f"{flash_output_dir}/{sim_name}/{sim_file}")
+        blist, brefs, bns = flash_amr_tools.get_true_blocks(f"{flash_output_dir}/{sim_dir}/{sim_file}")
 
-        with h5py.File(f"{flash_output_dir}/{sim_name}/{sim_file}", "r") as pf:
+        with h5py.File(f"{flash_output_dir}/{sim_dir}/{sim_file}", "r") as pf:
             dens_data = pf["dens"][()][blist] * (u.g / u.cm**3)
             encr_data = pf["encr"][()][blist] * (u.erg / u.g)
             ref_lvl = pf["refine level"][()][blist]
@@ -73,7 +67,7 @@ for i, sim_name in enumerate(list(bowshock_config.keys())):
         encr_data = (encr_data * dens_data).to(u.erg / u.pc**3)
         gam_intens_data = (1 / 3 * Bhadr_coeff * dens_data.to(u.g / u.pc**3) * encr_data).to(u.erg / u.s / u.cm**3)
 
-        if isim % 50 == 0 and isim != 0:
+        if isim % 100 == 0 and isim != 0:
             # finally plot the slice
             if not os.path.exists(f"{fig_dir}/gamma/{sim_name}"):
                 os.mkdir(f"{fig_dir}/gamma/{sim_name}")
@@ -124,32 +118,12 @@ for i, sim_name in enumerate(list(bowshock_config.keys())):
             sim_gr = pf.create_group(sim_name)
         else:
             sim_gr = pf[sim_name]
-        sim_gr.create_dataset("gamma_lum", data=gam_lum_arr.to(u.erg / u.s))
+
+        if "times" in pf[sim_name].keys():
+            del pf[sim_name]["times"]
         sim_gr.create_dataset("times", data=times.to(u.kyr))
 
-    ax_tseries.semilogy(times.to(u.kyr), gam_lum_arr.to(u.erg / u.s), color=bowshock_config[sim_name]["color"], label=bowshock_config[sim_name]["sim_label"])
-
-
-ax_tseries.set_xlabel("Time / kyr", fontsize=16)
-ax_tseries.set_ylabel(r"$L_\gamma$ / erg s$^{-1}$", fontsize=16)
-
-# ylimits
-ax_tseries.set_ylim(ymin=1e28, ymax=1e33)
-
-# ticks
-ax_tseries.tick_params(axis='both', direction="in", which='major', size=8, labelsize=18)
-ax_tseries.tick_params(axis='both', direction="in", which='minor', size=6, labelsize=16)
-
-ax_tseries.legend(prop={"size":14})
-
-# save
-fig_tseries.savefig(f"{fig_dir}/gamma/gam_lum_timeseries.pdf", bbox_inches="tight", dpi=300)
-
-
-
-
-
-
-
-
+        if "gamma_lum" in pf[sim_name].keys():
+            del pf[sim_name]["gamma_lum"]
+        sim_gr.create_dataset("gamma_lum", data=gam_lum_arr.to(u.erg / u.s))
         

@@ -5,13 +5,12 @@ import astropy.constants as const
 import h5py
 from scipy.interpolate import CubicSpline
 
-data_dir = "/home/watanabe/Projects/meerkat_bowshocks/meerkat_nrfs/meerkat_nrfs/data/"
+data_dir = "/home/watanabe/Projects/meerkat_bowshocks/crbowshock_analysis_tools/data"
 
 # constants used
 mp = const.m_p.cgs
 me = const.m_e.cgs
 c = const.c.cgs
-synch_freq = 1.28 * u.GHz   # synchrotron frequency from telescope
 
 def synch_kernel(x):
     '''As in Aharonian et al. 2010'''
@@ -45,31 +44,36 @@ pele_grid = pele(pprot_grid)
 pele_grid = pele_grid[ekin(pele_grid, m=me) > 1 * u.GeV]  # get only GeV electrons
 pele_grid_calc = pele_grid[:,None,None,None,None,None]
 
-
 # interpolate over momentum only 
 f_steady_state = CubicSpline(y=steady_state_mom_grid, x=pprot_grid.cgs.value, axis=0)
 steady_state_ele_grid = f_steady_state(pele_grid)
 
 # LoS magnetic field
-Blos_interp_grid = np.logspace(-10, -4, 100) * u.G
+Blos_interp_grid = np.logspace(-10, -4, 50) * u.G
 
-log10_ensynch_grid = np.zeros((len(alpha_inj_grid), len(log10_vel_grid), len(log10_kappa10_grid), len(log10_R0_grid), len(log10_dens_grid), len(Blos_interp_grid)))
+# synchrotron frequency
+synch_freq_grid = np.linspace(1.1, 15, 20) * u.GHz 
+
+log10_ensynch_grid = np.zeros((len(alpha_inj_grid), len(log10_vel_grid), len(log10_kappa10_grid), len(log10_R0_grid), len(log10_dens_grid), len(Blos_interp_grid), len(synch_freq_grid)))
 
 encr_grid = np.trapz(y=4 * np.pi * pprot_grid_calc**2 * ekin(pprot_grid_calc) * steady_state_mom_grid, x=pprot_grid, axis=0)
 log10_ene_grid = np.log10((encr_grid / np.trapz(y=4 * np.pi * pele_grid_calc**2 * steady_state_ele_grid, x=pele_grid, axis=0)).to_value(u.GeV))
 
 for ib, Blos in enumerate(Blos_interp_grid):
     nuc = crit_freq(Blos, pele_grid)
-    synch_ker = synch_kernel((synch_freq / nuc).to_value(u.dimensionless_unscaled))[:,None,None,None,None,None]
-    nelesynch = np.trapz(y=4 * np.pi * pele_grid_calc**2 * steady_state_ele_grid * synch_ker, x=pele_grid, axis=0)
-    log10_ensynch_grid[...,ib] = np.log10((encr_grid / nelesynch).to_value(u.GeV))
+    for isyn, synch_freq in enumerate(synch_freq_grid):
+        synch_ker = synch_kernel((synch_freq / nuc).to_value(u.dimensionless_unscaled))[:,None,None,None,None,None]
+        nelesynch = np.trapz(y=4 * np.pi * pele_grid_calc**2 * steady_state_ele_grid * synch_ker, x=pele_grid, axis=0)
+        log10_ensynch_grid[...,ib,isyn] = np.log10((encr_grid / nelesynch).to_value(u.GeV))
+
+print(np.nanmin(log10_ensynch_grid), np.nanmax(log10_ensynch_grid))
 
 with h5py.File(f"{data_dir}/steady_state_spectrum_thr.h5", "a") as f:
     if "synch_emission" in list(f.keys()):
         del f["synch_emission"]
     synch = f.create_group("synch_emission")
     synch.create_dataset("log10_Blos_grid", data=np.log10(Blos_interp_grid.to_value(u.G)))
-    synch.create_dataset("synch_freq", data=synch_freq.to_value(u.GHz))
+    synch.create_dataset("synch_freq_grid", data=synch_freq_grid.to_value(u.GHz))
     synch.create_dataset("log10_ensynch_grid", data=log10_ensynch_grid)
     synch.create_dataset("log10_pele_grid", data=np.log10(pele_grid.cgs.value))
     synch.create_dataset("log10_ene_grid", data=log10_ene_grid)
