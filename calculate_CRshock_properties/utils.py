@@ -52,21 +52,22 @@ def find_common_sims(time : float, output_dir : str):
     common_sim_files = []
 
     for sim_name in list(bowshock_config.keys()):
-        if sim_name not in os.listdir(output_dir):
-            print(f"Simulation {sim_name} not found. Skipping.")
+        sim_dir = bowshock_config[sim_name]["sim_dir"]
+        if sim_dir not in os.listdir(output_dir):
+            print(f"Simulation for {sim_name} not found. Skipping.")
             continue
 
         # get list of all files
         sim_files = []
-        for file in os.listdir(f"{output_dir}/{sim_name}"):
+        for file in os.listdir(f"{output_dir}/{sim_dir}"):
             if file.find("plt") < 0:
                 continue
             sim_files.append(file)
 
         for sim_file in sim_files:
-            with h5py.File(os.path.join(output_dir, sim_name, sim_file), "r") as pf:
+            with h5py.File(os.path.join(output_dir, sim_dir, sim_file), "r") as pf:
                 curr_time = pf["real scalars"][()][0][1]
-                if np.isclose(curr_time, time, rtol=1e-2, atol=1e-2):
+                if np.isclose(curr_time, time, rtol=1, atol=1):
                     common_sims.append(sim_name)
                     common_sim_files.append(sim_file)
                     break
