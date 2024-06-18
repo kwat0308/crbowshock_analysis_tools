@@ -18,7 +18,7 @@ import argparse
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--sim_name", "-S", action="store", type=str, help="name of simulation output.")
-parser.add_argument("--field", "-F", action="store", type=str, help="field variable")
+parser.add_argument("--field", "-F", action="store", type=str, default="dens", help="field variable")
 parser.add_argument("--pos", action="store", type=float, help="Position of slice", default=0.0)
 parser.add_argument("--axis", action="store", type=int, help="Axis of slice", default=2)
 

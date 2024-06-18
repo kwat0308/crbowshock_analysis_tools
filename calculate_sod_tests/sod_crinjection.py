@@ -6,29 +6,29 @@ from scipy.optimize import fsolve
 
 def pth_ratio(xs, th_gamma, cr_gamma, xi):
     '''Thermal Pressure ratio at shock, with injected CRs'''
-    num1 = xi * (xs * (cr_gamma - 1) - (cr_gamma + 1)) * xs**th_gamma
-    num2 = -xs * (th_gamma + 1) + (th_gamma - 1)
+    num1 = xi * (xs * (cr_gamma - 1.0) - (cr_gamma + 1.0)) * xs**th_gamma
+    num2 = -xs * (th_gamma + 1.0) + (th_gamma - 1.0)
 
-    denom1 = xi * (xs * (cr_gamma - 1) - (cr_gamma+1))
-    denom2 = xs * (th_gamma - 1) - (th_gamma + 1)
+    denom1 = xi * (xs * (cr_gamma - 1.0) - (cr_gamma+1))
+    denom2 = xs * (th_gamma - 1.0) - (th_gamma + 1.0)
 
     return (num1 + num2) / (denom1 + denom2)
 
 def atwood(xs, th_gamma, cr_gamma, xi):
     '''Atwood number, (rho2 - rho1) / (rho2 + rho1)'''
     ys = pth_ratio(xs, th_gamma, cr_gamma, xi)
-    num = ys + xi * (ys - xs**th_gamma) - 1
+    num = ys + xi * (ys - xs**th_gamma) - 1.0
     denom = ys * th_gamma + xi * (ys - xs**th_gamma) * cr_gamma + th_gamma
     return num / denom
 
 def ptot_ratio(xs, th_gamma, cr_gamma, xi):
     '''Total pressure ratio at region 2 (& 3), between shock & contact discontinuity'''
     ys = pth_ratio(xs, th_gamma, cr_gamma, xi)
-    return ys + ((cr_gamma - 1) / (th_gamma - 1)) * xi * (ys - xs**th_gamma)
+    return ys + ((cr_gamma - 1.0) / (th_gamma - 1.0)) * xi * (ys - xs**th_gamma)
 
 def pinj_ratio(xs, th_gamma, cr_gamma, xi):
     '''CR pressure injected in region 2, normalized by thermal (=total)pressure in region 1'''
-    return (cr_gamma - 1) / (th_gamma - 1) * xi * (pth_ratio(xs, th_gamma, cr_gamma, xi) - xs**th_gamma)
+    return (cr_gamma - 1.0) / (th_gamma - 1.0) * xi * (pth_ratio(xs, th_gamma, cr_gamma, xi) - xs**th_gamma)
 
 
 # check if it works
@@ -41,11 +41,28 @@ def xs_equation(xs, th_gamma, cr_gamma, xi, ptot1, ptot5, rho1, rho5):
     # calculate sound speeds
     sound_speed_ratio2 = (ptot5 * rho1) / (ptot1 * rho5)
 
-    term1 = (ptot2 / ptot1 - 1) * (aa / (1 + aa))
-    expo_term = 1 - (ptot2 / ptot5) ** ((th_gamma - 1) / (2 * th_gamma))
-    term2 = 2 * th_gamma / (th_gamma - 1)**2 * sound_speed_ratio2 * expo_term**2
+    term1 = (ptot2 / ptot1 - 1.0) * (aa / (1 + aa))
+    expo_term = 1.0 - (ptot2 / ptot5) ** ((th_gamma - 1.0) / (2.0 * th_gamma))
+    term2 = 2 * th_gamma / (th_gamma - 1.0)**2 * sound_speed_ratio2 * expo_term**2
 
     return term1 - term2
+
+# def solve_for_xs(init_args):
+#     th_gamma, cr_gamma, xi, ptot1, ptot5, rho1, rho5 = init_args 
+
+#     xss = np.linspace(1.1, 10.0, 500)
+#     aa = atwood(xss, th_gamma, cr_gamma, xi)
+#     ptot2 = ptot_ratio(xss, th_gamma, cr_gamma, xi) * ptot1
+
+#     # calculate sound speeds
+#     sound_speed_ratio2 = (ptot5 * rho1) / (ptot1 * rho5)
+
+#     term1 = (ptot2 / ptot1 - 1.0) * (aa / (1 + aa))
+#     expo_term = (1.0 - np.abs(ptot2 / ptot5) ** ((th_gamma - 1.0) / (2.0 * th_gamma)))
+#     term2 = 2 * th_gamma / (th_gamma - 1.0)**2 * sound_speed_ratio2 * expo_term**2
+#     # print(np.where(np.isclose(term1, term2, rtol=1e-1, atol=1e-1)))
+#     print(xss[np.where(np.isclose(term1, term2, rtol=0.1, atol=1e-1))[0]])
+#     return xss[np.where(np.isclose(term1, term2, rtol=1e-1, atol=1e-1))[0]][0]
 
 
 def get_velocities(xs, init_args):
@@ -54,21 +71,22 @@ def get_velocities(xs, init_args):
 
 
     ptot2 = ptot_ratio(xs, th_gamma, cr_gamma, xi) * ptot1
-    eta2 = (th_gamma - 1) / (th_gamma + 1)
+    eta2 = (th_gamma - 1.0) / (th_gamma + 1.0)
     c5 = np.sqrt(th_gamma * ptot5 / rho5)
 
-    vel_post = 2 * c5 / (th_gamma - 1) * (1 - (ptot2 / ptot5) ** ((th_gamma - 1) / (2 * th_gamma)))
-    vs = vel_post / (1 - (1 / xs))
-    vt = c5 - vel_post / (1 - eta2)
+    vel_post = 2 * c5 / (th_gamma - 1.0) * (1.0 - (ptot2 / ptot5) ** ((th_gamma - 1.0) / (2.0 * th_gamma)))
+    vs = vel_post / (1.0 - (1.0 / xs))
+    vt = c5 - vel_post / (1.0 - eta2)
 
     return vel_post, vs, vt
 
 
-def velocity_scalar(x, t, init_args):
+def velocity_scalar(x, t, x0, init_args, xsdata=None):
     '''Analytical velocity'''
 
     # use initial arguments to compute xs & velocities
-    xs = fsolve(xs_equation, 1.0, args=init_args)[0]
+    xs = xsdata if xsdata != None else fsolve(xs_equation, x0, args=init_args)[0]
+    # xs = solve_for_xs(init_args)
     velx2, vs, vt = get_velocities(xs, init_args)
 
     # now unpack to define the rest of the regions
@@ -83,11 +101,12 @@ def velocity_scalar(x, t, init_args):
     else:
         return 0.0
 
-def pressure_scalar(x, t, init_args):
+def pressure_scalar(x, t, x0, init_args, xsdata=None):
     '''Analytical pressure'''
 
     # use initial arguments to compute xs & velocities
-    xs = fsolve(xs_equation, 1.0, args=init_args)[0]
+    xs = xsdata if xsdata != None else fsolve(xs_equation, x0, args=init_args)[0]
+    # xs = solve_for_xs(init_args)
     velx2, vs, vt = get_velocities(xs, init_args)
 
     # now unpack to define the rest of the regions
@@ -104,10 +123,11 @@ def pressure_scalar(x, t, init_args):
     else:
         return ptot5
 
-def prcr_scalar(x, t, init_args):
+def prcr_scalar(x, t, x0, init_args, xsdata=None):
     '''CR pressure'''
     # use initial arguments to compute xs & velocities
-    xs = fsolve(xs_equation, 1.0, args=init_args)[0]
+    xs = xsdata if xsdata != None else fsolve(xs_equation, x0, args=init_args)[0]
+    # xs = solve_for_xs(init_args)
     velx2, vs, vt = get_velocities(xs, init_args)
 
     # now unpack to define the rest of the regions
@@ -118,10 +138,11 @@ def prcr_scalar(x, t, init_args):
     else:
         return 0.0
     
-def pth_scalar(x, t, init_args):
+def pth_scalar(x, t, x0, init_args, xsdata=None):
     '''Thermal pressure'''
     # use initial arguments to compute xs & velocities
-    xs = fsolve(xs_equation, 1.0, args=init_args)[0]
+    xs = xsdata if xsdata != None else fsolve(xs_equation, x0, args=init_args)[0]
+    # xs = solve_for_xs(init_args)
     velx2, vs, vt = get_velocities(xs, init_args)
 
     # now unpack to define the rest of the regions
@@ -140,10 +161,11 @@ def pth_scalar(x, t, init_args):
     else:
         return ptot5
 
-def density_scalar(x, t, init_args):
+def density_scalar(x, t, x0, init_args, xsdata=None):
     '''Analytical density'''
     # use initial arguments to compute xs & velocities
-    xs = fsolve(xs_equation, 1.0, args=init_args)[0]
+    xs = xsdata if xsdata != None else fsolve(xs_equation, x0, args=init_args)[0]
+    # xs = solve_for_xs(init_args)
     velx2, vs, vt = get_velocities(xs, init_args)
 
     # now unpack to define the rest of the regions
@@ -164,30 +186,37 @@ def density_scalar(x, t, init_args):
 
 # vectorized functions
 
-def velocity(xarr, t, init_args):
-    return np.array([velocity_scalar(x, t, init_args) for x in xarr])
+def velocity(xarr, t, x0, init_args, xsdata=None):
+    return np.array([velocity_scalar(x, t, x0, init_args, xsdata=None) for x in xarr])
 
-def density(xarr, t, init_args):
-    return np.array([density_scalar(x, t, init_args) for x in xarr])
+def density(xarr, t, x0, init_args, xsdata=None):
+    return np.array([density_scalar(x, t, x0, init_args, xsdata=None) for x in xarr])
 
-def pressure(xarr, t, init_args):
-    return np.array([pressure_scalar(x, t, init_args) for x in xarr])
+def pressure(xarr, t, x0, init_args, xsdata=None):
+    return np.array([pressure_scalar(x, t, x0, init_args, xsdata=None) for x in xarr])
 
-def pressure_cr(xarr, t, init_args):
-    return np.array([prcr_scalar(x, t, init_args) for x in xarr])
+def pressure_cr(xarr, t, x0, init_args, xsdata=None):
+    return np.array([prcr_scalar(x, t, x0, init_args, xsdata=None) for x in xarr])
 
-def pressure_thermal(xarr, t, init_args):
-    return np.array([pth_scalar(x, t, init_args) for x in xarr])
+def pressure_thermal(xarr, t, x0, init_args, xsdata=None):
+    return np.array([pth_scalar(x, t, x0, init_args, xsdata=None) for x in xarr])
 
 
-def shock_loc(xarr, t, init_args, atol=1e-5):
+def shock_loc(xarr, t, x0, init_args, xsdata=None, atol=1e-5):
     '''Location of the shock'''
     # use initial arguments to compute xs & velocities
-    xs = fsolve(xs_equation, 1.0, args=init_args)[0]
+    xs = xsdata if xsdata != None else fsolve(xs_equation, x0, args=init_args)[0]
+    # xs = solve_for_xs(init_args)
     velx2, vs, vt = get_velocities(xs, init_args)
 
     return xarr[np.abs(xarr - vs * t) < atol]
 
+def plot_xseq(init_args):
+    '''PLot the equation that we numerically root find'''
+    x = np.linspace(1,4)
+    y = xs_equation(x, *init_args)
+    plt.plot(x, y)
+    plt.savefig("./test_plot.png")
 
 # test using Pfrommer's configuration
 if __name__ == "__main__":
@@ -221,6 +250,7 @@ if __name__ == "__main__":
     ax.set_xlabel("x")
     ax.set_ylabel("Density")
     fig.savefig("./test_figures/sod_crinjection_test_dens.png")
+    plt.close()
 
     pres_arr = pressure(x_arr, time, init_args=initial_args)
     prcr_arr = pressure_cr(x_arr, time, init_args=initial_args)
@@ -233,6 +263,7 @@ if __name__ == "__main__":
     ax.set_ylabel("Pressure")
     ax.legend()
     fig.savefig("./test_figures/sod_crinjection_test_pres.png")
+    plt.close()
 
     velx_arr = velocity(x_arr, time, init_args=initial_args)
     fig, ax = plt.subplots(figsize=(6,4))
@@ -240,4 +271,6 @@ if __name__ == "__main__":
     ax.set_xlabel("x")
     ax.set_ylabel("Velocity - x")
     fig.savefig("./test_figures/sod_crinjection_test_velx.png")
-    ax.set_ylabel("Velocity - x")
+    plt.close()
+
+    plot_xseq(initial_args)

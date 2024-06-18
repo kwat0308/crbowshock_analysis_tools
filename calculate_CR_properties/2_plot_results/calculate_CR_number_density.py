@@ -15,7 +15,7 @@ import flash_amr_tools
 
 flash_output_dir = "/home/watanabe/Projects/meerkat_bowshocks/outputs"
 fig_dir = "/home/watanabe/Projects/meerkat_bowshocks/figures"
-data_dir = "/home/watanabe/Projects/meerkat_bowshocks/meerkat_nrfs/meerkat_nrfs/data/"
+data_dir = "/home/watanabe/Projects/meerkat_bowshocks/crbowshock_analysis_tools/data"
 
 import argparse
 
@@ -26,7 +26,7 @@ parser.add_argument("--axis", action="store", type=int, help="Axis of slice", de
 args = parser.parse_args()
 
 sim_name = args.sim_name
-sim_label = bowshock_config[args.sim_name]["sim_label"]
+sim_dir = bowshock_config[args.sim_name]["sim_dir"]
 mstar = bowshock_config[args.sim_name]["mstar"] * u.Msun
 vstar = bowshock_config[args.sim_name]["vstar"] * (u.km/u.s)
 env_name = bowshock_config[args.sim_name]["env_name"]
@@ -66,7 +66,7 @@ if not os.path.exists(f"{fig_dir}/{sim_name}"):
 
 # get list of all files
 sim_files = []
-for file in os.listdir(f"{flash_output_dir}/{sim_name}"):
+for file in os.listdir(f"{flash_output_dir}/{sim_dir}"):
     if file.find("plt") < 0:
         continue
     sim_files.append(file)
@@ -81,9 +81,9 @@ if len(sim_files) > 200:
 
 # loop over each file and get the slice
 for sim_file in sim_files:
-    blist, brefs, bns = flash_amr_tools.get_true_blocks(f"{flash_output_dir}/{sim_name}/{sim_file}")
+    blist, brefs, bns = flash_amr_tools.get_true_blocks(f"{flash_output_dir}/{sim_dir}/{sim_file}")
 
-    with h5py.File(f"{flash_output_dir}/{sim_name}/{sim_file}", "r") as pf:
+    with h5py.File(f"{flash_output_dir}/{sim_dir}/{sim_file}", "r") as pf:
         shma_data = pf["shma"][()][blist]
         dens_data = pf["dens"][()][blist] * (u.g / u.cm**3)
         vel_data = [pf["velx"][()][blist], pf["vely"][()][blist], pf["velz"][()][blist]] 
@@ -100,7 +100,7 @@ for sim_file in sim_files:
     xs_data = (gam + 1) * shma_data**2 / (2 + (gam - 1) * shma_data**2)
     alpha_inj_data = 3 * xs_data / (xs_data - 1)
     # force minimal and maximal values
-    alpha_inj_data[alpha_inj_data < 4] = 10  # soft spectral index for background CRs
+    alpha_inj_data[alpha_inj_data < 4] = 6  # soft spectral index for background CRs
     alpha_inj_data[alpha_inj_data >= 10] = 10  # similarly
 
     # computing velocity magnitude3
@@ -113,9 +113,6 @@ for sim_file in sim_files:
     # finally plot the slice
     if not os.path.exists(f"{fig_dir}/{sim_name}/ncr"):
         os.mkdir(f"{fig_dir}/{sim_name}/ncr")
-
-    if not os.path.exists(f"{fig_dir}/{sim_name}/ncr/axis{args.axis}"):
-        os.mkdir(f"{fig_dir}/{sim_name}/ncr/axis{args.axis}")
 
     ncr_sl = flash_amr_tools.get_slice(ncr_data, pos=args.pos, axis=args.axis, ref_lvl=ref_lvl, bbox=bbox, bsize=bsize, brefs=brefs, bns=bns)
 
@@ -145,6 +142,6 @@ for sim_file in sim_files:
     cb.ax.tick_params(axis='both', which='minor', size=6, labelsize=18)
 
     # save
-    fig.savefig(f"{fig_dir}/{sim_name}/ncr/axis{args.axis}/ncr_sl_axis{args.axis}_{sim_file[-4:]}.png", bbox_inches="tight", dpi=300)
+    fig.savefig(f"{fig_dir}/{sim_name}/ncr/ncr_sl_axis{args.axis}_{sim_file[-4:]}.png", bbox_inches="tight", dpi=300)
 
     plt.close(fig)
