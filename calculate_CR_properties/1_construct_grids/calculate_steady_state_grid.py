@@ -40,7 +40,7 @@ B_hadr = (c * sigma_pp * Kp / (mp * mol_weight)).cgs  # hadronic loss coefficien
 print(f"B_hadr = {B_hadr.cgs:.5e}")
 
 # grid of energies from 1.3 GeV to 10 TeV since we want > pion threshold
-Ekin_arr = np.logspace(np.log10(1.3), 6, 200) * u.GeV  
+Ekin_arr = np.logspace(np.log10(1.3), 4, 200) * u.GeV  
 ekin_arr = (Ekin_arr / (mp * c**2)).to_value(u.dimensionless_unscaled)
 print("Minimum & maximum of E / mc^2: ", ekin_arr.min(), ekin_arr.max())
 
@@ -58,7 +58,7 @@ vel_grid = np.logspace(np.log10(vmin.value), np.log10(vmax.value), 25) * (u.km/u
 R0_grid = np.logspace(np.log10(R0_min.value), np.log10(R0_max.value), 25) * u.pc
 kappa_10_grid = np.logspace(np.log10(kappa10_min.value), np.log10(kappa10_max.value), 25)  * (u.cm**2 / u.s)
 dens_grid = np.logspace(np.log10(dens_min.value), np.log10(dens_max.value), 25) * (u.g / u.cm**3)
-alpha_inj_grid = np.linspace(4, 10, 50)
+alpha_inj_grid = np.linspace(4, 10, 25)
 
 # now compute steady state grid
 steady_state_grid = np.zeros((len(ekin_arr), len(alpha_inj_grid), len(kappa_10_grid), len(R0_grid), len(vel_grid), len(dens_grid)))
@@ -102,7 +102,7 @@ pprot_grid = mom(ekin_arr)
 pprot_grid_calc = pprot_grid[:,None,None,None,None,None]
 ekin_arr_calc = ekin_arr[:,None,None,None,None,None]
 
-steady_state_mom_grid = steady_state_grid * pprot_grid_calc / (mp * ekin_arr_calc)  # for the factor of dE / dp
+steady_state_mom_grid = steady_state_grid * pprot_grid_calc / (2 * mp**2 * c**2 * ekin_arr_calc)  # for the factor of dE / dp
 ncr_grid = np.trapz(y=4 * np.pi * pprot_grid_calc**2 * steady_state_mom_grid, x=pprot_grid, axis=0)
 encr_grid = np.trapz(y=4 * np.pi * pprot_grid_calc**2 * ekin_arr_calc * steady_state_mom_grid, x=pprot_grid, axis=0)
 

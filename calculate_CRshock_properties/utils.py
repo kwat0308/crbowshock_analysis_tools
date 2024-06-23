@@ -74,6 +74,26 @@ def find_common_sims(time : float, output_dir : str):
 
     return common_sims, common_sim_files
 
+def get_file_at_time(sim_name : str, time : float, output_dir : str):
+    '''Get the file at the indicated time'''
+    sim_dir = bowshock_config[sim_name]["sim_dir"]
+    if sim_dir not in os.listdir(output_dir):
+        print(f"Simulation for {sim_name} not found. Skipping.")
+        return
+
+    # get list of all files
+    sim_files = []
+    for file in os.listdir(f"{output_dir}/{sim_dir}"):
+        if file.find("plt") < 0:
+            continue
+        sim_files.append(file)
+
+    for sim_file in sim_files:
+        with h5py.File(os.path.join(output_dir, sim_dir, sim_file), "r") as pf:
+            curr_time = pf["real scalars"][()][0][1]
+            if np.isclose(curr_time, time, rtol=1, atol=1):
+                return sim_file
+
     
 
 
