@@ -21,17 +21,17 @@ field_lims = {
     #     "outer":[0.0, 15],
     #     "term":[0.0, 35],
     # },
-    "shma":[0.0, 80],
-    "encr":[1e-15, 1e-9],
+    "shma":[1.0, 60],
+    "encr":[1e-15, 1e-10],
     "mgob" : [-5, 185.0],
-    "crac": [1e-3, 1],
-    "geff":[1.3, 1.9],
+    "crac": [0.0, 0.2],
+    "geff":[1.5, 1.75],
 }
 field_scales = {
     "dens":"log",
     "encr":"log",
     "shma":"log",
-    "crac":"log",
+    "crac":"linear",
     "mgob":"linear",
     "geff":"linear"
 }

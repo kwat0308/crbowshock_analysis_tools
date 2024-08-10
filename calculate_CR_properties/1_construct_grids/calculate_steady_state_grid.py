@@ -12,7 +12,7 @@ from joblib import delayed, Parallel
 
 import h5py
 
-data_dir = "/home/watanabe/Projects/meerkat_bowshocks/meerkat_nrfs/meerkat_nrfs/data/"
+data_dir = "../../data"
 
 def inj_spect(ep, alpha_inj):
     '''Unnormalised injection spectrum, unitless'''
@@ -92,7 +92,7 @@ def get_steady_state(args):
 args = [(alpha_inj, ekin_arr, kappa_10_grid, R0_grid, vel_grid, dens_grid) for alpha_inj in alpha_inj_grid]
 
 # parallelize
-results = Parallel(n_jobs=2)(delayed(get_steady_state)(arg) for arg in args)
+results = Parallel(n_jobs=16)(delayed(get_steady_state)(arg) for arg in args)
 
 for ia, steady_state_tmp in enumerate(results):
     steady_state_grid[:,ia,...] = steady_state_tmp

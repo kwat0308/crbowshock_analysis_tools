@@ -1,0 +1,56 @@
+{
+    "config" : {
+        "ISM-v30": {
+            "sim_dir":"BS_ISM_v30",
+            "mstar":20,
+            "vstar":30,
+            "env_name":"ISM",
+            "kappa_10":3e25,
+            "color":"royalblue"
+        },
+        "ISM-v30-HDiff": {
+            "sim_dir":"BS_ISM_v30_highdiff",
+            "mstar":20,
+            "vstar":30,
+            "env_name":"ISM",
+            "kappa_10":3e26,
+            "color":"forestgreen"
+        },
+        "ISM-v30-LDiff": {
+            "sim_dir":"BS_ISM_v30_lowdiff",
+            "mstar":20,
+            "vstar":30,
+            "env_name":"ISM",
+            "kappa_10":3e24,
+            "color":"indianred"
+        },
+        "ISM-v60": {
+            "sim_dir":"BS_ISM_v60",
+            "mstar":20,
+            "vstar":60,
+            "env_name":"ISM",
+            "kappa_10":3e25,
+            "color":"purple"
+        },
+        "ISM-v100": {
+            "sim_dir":"BS_ISM_v100",
+            "mstar":20,
+            "vstar":100,
+            "env_name":"ISM",
+            "kappa_10":3e25,
+            "color":"goldenrod"
+        },
+        "ISM-v30-Bx": {
+            "sim_dir":"BS_ISM_v30_Bx",
+            "mstar":20,
+            "vstar":30,
+            "env_name":"ISM",
+            "kappa_10":3e26,
+            "color":"pink"
+        }
+    },
+    "shock_labels" : {
+        "outer" : "Outer Shock",
+        "term" : "Termination Shock"
+    }
+}

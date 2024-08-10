@@ -4,18 +4,17 @@ import astropy.units as u
 import astropy.constants as const
 import h5py
 import os
+import json
 
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 from mpl_toolkits.axes_grid1  import make_axes_locatable
 
-from bowshock_config import bowshock_config
-
 import flash_amr_tools
 
-flash_output_dir = "/home/watanabe/Projects/meerkat_bowshocks/outputs"
-fig_dir = "/home/watanabe/Projects/meerkat_bowshocks/figures"
-data_dir = "/home/watanabe/Projects/meerkat_bowshocks/crbowshock_analysis_tools/data"
+flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/cr_bowshock_outputs"
+fig_dir = "/home/kwatanabe/Projects/cr-bowshocks/figures"
+data_dir = "/home/kwatanabe/Projects/cr-bowshocks/crbowshock_analysis_tools/data"
 
 sigma_pp = 44 * u.mbarn  # total pion cross section
 Kp = 0.5  # inelasticity
@@ -24,6 +23,9 @@ Bhadr_coeff = (const.c.cgs * sigma_pp * Kp / (const.m_p.cgs * mol_weight)).cgs  
 
 if not os.path.exists(f"{fig_dir}/gamma"):
     os.mkdir(f"{fig_dir}/gamma")
+
+# load the bowshock config
+bowshock_config = json.load(open("../../config/bowshock_config.json", "r"))["config"]
 
 for i, sim_name in enumerate(list(bowshock_config.keys())):
 

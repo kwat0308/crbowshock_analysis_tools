@@ -1,7 +1,7 @@
 
 bowshock_config = {
     "HarpISM": {
-        "sim_dir":"BowShock_HarpISM",
+        "sim_dir":"BS_ISM_v30",
         "mstar":20,
         "vstar":30,
         "env_name":"ISM",

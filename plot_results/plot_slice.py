@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import astropy.units as u
+import json
 
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
@@ -24,21 +25,26 @@ parser.add_argument("--axis", action="store", type=int, help="Axis of slice", de
 
 args = parser.parse_args()
 
-fig_dir = "/home/watanabe/Projects/meerkat_bowshocks/figures"
-flash_output_dir = "/home/watanabe/Projects/meerkat_bowshocks/outputs"
+fig_dir = "/home/kwatanabe/Projects/cr-bowshocks/figures/slices"
+flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/cr_bowshock_outputs"
+
+# load the bowshock config
+bowshock_config = json.load(open("../config/bowshock_config.json", "r"))["config"]
 
 # initial parameters
-sim_dir = args.sim_name
+sim_name = args.sim_name
 field = args.field
 pos = args.pos
 axis = args.axis
 
-if not os.path.exists(f"{fig_dir}/{sim_dir}"):
-    os.mkdir(f"{fig_dir}/{sim_dir}")
+sim_dir = os.path.join(flash_output_dir, bowshock_config[sim_name]["sim_dir"])
+
+if not os.path.exists(f"{fig_dir}/{sim_name}"):
+    os.mkdir(f"{fig_dir}/{sim_name}")
 
 # get list of all files
 sim_files = []
-for file in os.listdir(f"{flash_output_dir}/{sim_dir}"):
+for file in os.listdir(sim_dir):
     if file.find("plt") < 0:
         continue
     sim_files.append(file)
@@ -51,12 +57,14 @@ if len(sim_files) > 200:
     sim_files = sim_files[::10]
 
 # loop over each file and get the slice
-for sim_file in sim_files:
+for it, sim_file in enumerate(sim_files):
+    if it > 0:
+        continue
     print(sim_file)
-    blist, brefs, bns = flash_amr_tools.get_true_blocks(f"{flash_output_dir}/{sim_dir}/{sim_file}")
+    blist, brefs, bns = flash_amr_tools.get_true_blocks(f"{sim_dir}/{sim_file}")
 
     # open file
-    pf = h5py.File(f"{flash_output_dir}/{sim_dir}/{sim_file}")
+    pf = h5py.File(f"{sim_dir}/{sim_file}")
     print(f"List of variables in file: {list(pf.keys())}")
     ref_lvl = pf["refine level"][()][blist]
     bbox = pf["bounding box"][()][blist]
@@ -69,12 +77,6 @@ for sim_file in sim_files:
 
     # extent for imshow
     extent = ([low_cor[0], up_cor[0], low_cor[1], up_cor[1]] * u.cm).to_value(u.pc)
-
-    if not os.path.exists(f"{fig_dir}/{sim_dir}/{field}"):
-        os.mkdir(f"{fig_dir}/{sim_dir}/{field}")
-
-    if not os.path.exists(f"{fig_dir}/{sim_dir}/{field}/axis{axis}"):
-        os.mkdir(f"{fig_dir}/{sim_dir}/{field}/axis{axis}")
 
     field_slice = flash_amr_tools.get_slice(field_data, pos=pos, axis=axis, ref_lvl=ref_lvl, bbox=bbox, bsize=bsize, brefs=brefs, bns=bns)
 
@@ -121,6 +123,6 @@ for sim_file in sim_files:
         cb.ax.tick_params(axis='both', which='minor', size=6, labelsize=18)
 
     # save
-    fig.savefig(f"{fig_dir}/{sim_dir}/{field}/axis{axis}/{field}_sl_axis{axis}_{sim_file[-4:]}.png", bbox_inches="tight", dpi=300)
+    fig.savefig(f"{fig_dir}/{sim_name}/{field}_{sim_file[-4:]}.png", bbox_inches="tight", dpi=300)
 
     plt.close(fig)
