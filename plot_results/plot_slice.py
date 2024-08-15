@@ -26,7 +26,8 @@ parser.add_argument("--axis", action="store", type=int, help="Axis of slice", de
 args = parser.parse_args()
 
 fig_dir = "/home/kwatanabe/Projects/cr-bowshocks/figures/slices"
-flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/cr_bowshock_outputs"
+# flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/cr_bowshock_outputs"
+flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/outputs"
 
 # load the bowshock config
 bowshock_config = json.load(open("../config/bowshock_config.json", "r"))["config"]
@@ -42,6 +43,9 @@ sim_dir = os.path.join(flash_output_dir, bowshock_config[sim_name]["sim_dir"])
 if not os.path.exists(f"{fig_dir}/{sim_name}"):
     os.mkdir(f"{fig_dir}/{sim_name}")
 
+if not os.path.exists(f"{fig_dir}/{sim_name}/{field}"):
+    os.mkdir(f"{fig_dir}/{sim_name}/{field}")
+
 # get list of all files
 sim_files = []
 for file in os.listdir(sim_dir):
@@ -53,14 +57,14 @@ for file in os.listdir(sim_dir):
 sim_files = sorted(sim_files)[::-1]
 
 # truncate to every 10 plot files if we have over 200 plot files
-if len(sim_files) > 200:
-    sim_files = sim_files[::10]
+# if len(sim_files) > 200:
+#     sim_files = sim_files[::10]
 
 # loop over each file and get the slice
 for it, sim_file in enumerate(sim_files):
-    if it > 0:
-        continue
     print(sim_file)
+    if it % 50 != 0:
+        continue
     blist, brefs, bns = flash_amr_tools.get_true_blocks(f"{sim_dir}/{sim_file}")
 
     # open file
@@ -88,7 +92,7 @@ for it, sim_file in enumerate(sim_files):
         # define bins and normalize
         bounds = np.array([1, 3, 5, 7]) - 1
         norm = mcolors.BoundaryNorm(bounds, len(shck_color_list))
-    elif field == "shma" or field == "mach" or field == "crac" or field == "mgob":
+    elif field in ("shma", "mach", "crac", "mgob"):
         norm = mcolors.Normalize(vmin=field_lims[field][0], vmax=field_lims[field][1], clip=True)
     else:
         norm = mcolors.LogNorm(vmin=field_lims[field][0], vmax=field_lims[field][1], clip=True)
@@ -123,6 +127,6 @@ for it, sim_file in enumerate(sim_files):
         cb.ax.tick_params(axis='both', which='minor', size=6, labelsize=18)
 
     # save
-    fig.savefig(f"{fig_dir}/{sim_name}/{field}_{sim_file[-4:]}.png", bbox_inches="tight", dpi=300)
+    fig.savefig(f"{fig_dir}/{sim_name}/{field}/{field}_{sim_file[-4:]}.png", bbox_inches="tight", dpi=300)
 
     plt.close(fig)

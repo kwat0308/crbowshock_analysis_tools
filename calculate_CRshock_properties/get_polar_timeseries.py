@@ -11,7 +11,8 @@ import flash_amr_tools
 import h5py
 
 
-flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/cr_bowshock_outputs"
+# flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/cr_bowshock_outputs"
+flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/outputs"
 data_dir = "/home/kwatanabe/Projects/cr-bowshocks/crbowshock_analysis_tools/data"
 
 # initial parameters
@@ -21,12 +22,12 @@ theta_ranges = [(0, 10), (10,20),(20,30), (30, 45), (45,60), (60,75), (75,90), (
 # load the bowshock config
 bowshock_config = json.load(open("../config/bowshock_config.json", "r"))["config"]
 
-for s, shock in enumerate(["term"]):
+for s, shock in enumerate(["outer"]):
 
     for sim_name in list(bowshock_config.keys()):
         print(sim_name)
 
-        if sim_name not in ("ISM-v100"):
+        if sim_name != "CMZ-v30":
             continue
 
         sim_dir = bowshock_config[sim_name]["sim_dir"]

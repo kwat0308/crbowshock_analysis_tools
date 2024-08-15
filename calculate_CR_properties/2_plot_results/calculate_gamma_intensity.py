@@ -12,7 +12,7 @@ from mpl_toolkits.axes_grid1  import make_axes_locatable
 
 import flash_amr_tools
 
-flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/cr_bowshock_outputs"
+flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/outputs"
 fig_dir = "/home/kwatanabe/Projects/cr-bowshocks/figures"
 data_dir = "/home/kwatanabe/Projects/cr-bowshocks/crbowshock_analysis_tools/data"
 
@@ -28,6 +28,9 @@ if not os.path.exists(f"{fig_dir}/gamma"):
 bowshock_config = json.load(open("../../config/bowshock_config.json", "r"))["config"]
 
 for i, sim_name in enumerate(list(bowshock_config.keys())):
+
+    if sim_name != "ISM-v30":
+        continue
 
     sim_dir = bowshock_config[sim_name]['sim_dir']
     mstar = bowshock_config[sim_name]["mstar"] * u.Msun

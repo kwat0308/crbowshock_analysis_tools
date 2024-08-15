@@ -14,7 +14,7 @@
             "vstar":30,
             "env_name":"ISM",
             "kappa_10":3e26,
-            "color":"forestgreen"
+            "color":"pink"
         },
         "ISM-v30-LDiff": {
             "sim_dir":"BS_ISM_v30_lowdiff",
@@ -22,7 +22,7 @@
             "vstar":30,
             "env_name":"ISM",
             "kappa_10":3e24,
-            "color":"indianred"
+            "color":"turquoise"
         },
         "ISM-v60": {
             "sim_dir":"BS_ISM_v60",
@@ -46,7 +46,15 @@
             "vstar":30,
             "env_name":"ISM",
             "kappa_10":3e26,
-            "color":"pink"
+            "color":"forestgreen"
+        },
+        "CMZ-v30": {
+            "sim_dir":"BS_CMZ_v30",
+            "mstar":20,
+            "vstar":30,
+            "env_name":"CMZ",
+            "kappa_10":3e26,
+            "color":"indianred"
         }
     },
     "shock_labels" : {

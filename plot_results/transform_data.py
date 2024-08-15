@@ -12,6 +12,7 @@ def get_transformed_data(pf : h5py.File, field : str, blist):
         field_data += pf[f"{field}y"][()][blist]**2 
         field_data += pf[f"{field}z"][()][blist]**2 
         field_data = np.sqrt(field_data)
+        field_data = (field_data * (u.cm/u.s)).to(u.km/u.s) if field == "vel" else field_data * u.G
     elif field == "pres":  # convert to P/kB
         field_data = pf["pres"][()][blist] * (u.g / u.cm / u.s**2) / const.k_B.cgs
         field_data = field_data.to("K/cm**3")

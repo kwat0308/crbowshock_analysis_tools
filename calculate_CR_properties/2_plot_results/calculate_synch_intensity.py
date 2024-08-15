@@ -21,7 +21,7 @@ parser.add_argument("--reset", "-r", action="store_true", default=False, help="R
 
 args = parser.parse_args()
 
-flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/cr_bowshock_outputs"
+flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/outputs"
 fig_dir = "/home/kwatanabe/Projects/cr-bowshocks/figures"
 data_dir = "/home/kwatanabe/Projects/cr-bowshocks/crbowshock_analysis_tools/data"
 
@@ -45,8 +45,9 @@ if not os.path.exists(f"{fig_dir}/synch"):
     os.mkdir(f"{fig_dir}/synch")
 
 for i, sim_name in enumerate(list(bowshock_config.keys())):
-    # if sim_name != "ISM-v30":
-    #     continue
+    print(sim_name)
+    if sim_name != "ISM-v30":
+        continue
 
     # write data to h5py file
     with h5py.File(f"{data_dir}/emission_data.h5", "a") as pf:
