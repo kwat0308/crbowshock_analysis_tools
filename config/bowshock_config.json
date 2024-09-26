@@ -55,6 +55,14 @@
             "env_name":"CMZ",
             "kappa_10":3e26,
             "color":"indianred"
+        },
+        "ISM-v30-MHD": {
+            "sim_dir":"BS_ISM_v30_MHD",
+            "mstar":20,
+            "vstar":30,
+            "env_name":"ISM",
+            "kappa_10":"None",
+            "color":"gray"
         }
     },
     "shock_labels" : {
