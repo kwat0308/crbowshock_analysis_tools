@@ -29,7 +29,7 @@ bowshock_config = json.load(open("../../config/bowshock_config.json", "r"))["con
 
 for i, sim_name in enumerate(list(bowshock_config.keys())):
 
-    if sim_name != "ISM-v30":
+    if sim_name != "ISM-v30-Bx":
         continue
 
     sim_dir = bowshock_config[sim_name]['sim_dir']
