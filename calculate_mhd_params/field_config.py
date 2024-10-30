@@ -40,7 +40,7 @@ field_cmaps = {
     "geff":cm.cividis
 }
 field_lims = {
-    "dens" : [5e-29, 5e-21],
+    "dens" : [5e-30, 5e-23],
     "temp" : [7e2, 3e9],
     "pres" : [0.9, 5e5],
     "vel" : [0.9, 3e4],
@@ -53,4 +53,21 @@ field_lims = {
     "crac": [0.0, 1.0],
     "plasma_beta" : [1e-3, 1e3],
     "geff":[1.2, 1.9],
+}
+field_scales = {
+    "dens" : "log",
+    "temp" : "log",
+    "pres" : "log",
+    "vel" : "log",
+    "mag" : "log",
+    "ener":"log",
+    "shck" : None,
+    "shma" : "linear",
+    "encr" : "log",
+    "entropy" : "log",
+    "mach" : "linear",
+    "mgob" : "linear",
+    "crac": "linear",
+    "plasma_beta": "log",
+    "geff": "linear"
 }

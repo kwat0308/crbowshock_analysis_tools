@@ -37,7 +37,7 @@ parser.add_argument(
 parser.add_argument(
     "--nprocs",
     action="store",
-    default=8,
+    default=3,
     help="Number of cores to use for parallelisation"
 )
 
@@ -116,7 +116,7 @@ for s, shock in enumerate(["outer"]):
     
     sim_argslist = [(it, ifld, sim_files[it], field_names[ifld]) for it, ifld in np.ndindex(len(sim_files), len(field_names))]
 
-    results = Parallel(n_jobs=3)(delayed(compute_polar_data)(arg) for arg in sim_argslist)
+    results = Parallel(n_jobs=args.nprocs)(delayed(compute_polar_data)(arg) for arg in sim_argslist)
 
     for it, ifld, time, field_vals in results:
         times[it] = time
@@ -126,8 +126,8 @@ for s, shock in enumerate(["outer"]):
     with h5py.File(f"{data_dir}/polar_time_series_{shock}.h5", "a") as pf:
         if args.sim_name in list(pf.keys()):
             sim_gr = pf[args.sim_name]
-            # del pf[args.sim_name]["times"]
-            # del pf[args.sim_name]["theta_ranges"]
+            del pf[args.sim_name]["times"]
+            del pf[args.sim_name]["theta_ranges"]
             sim_gr.create_dataset("times", data=times)
             sim_gr.create_dataset("theta_ranges", data=theta_ranges)
         else:
@@ -140,3 +140,6 @@ for s, shock in enumerate(["outer"]):
                 del sim_gr[field]
             
             sim_gr.create_dataset(field, data=field_polar_vals[ifld,...])
+
+    with h5py.File(f"{data_dir}/polar_time_series_{shock}.h5", "a") as pf:
+        print(pf[args.sim_name].keys())

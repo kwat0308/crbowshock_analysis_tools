@@ -29,8 +29,9 @@ bowshock_config = json.load(open("../../config/bowshock_config.json", "r"))["con
 
 for i, sim_name in enumerate(list(bowshock_config.keys())):
 
-    if sim_name != "ISM-v30-Bx":
-        continue
+
+
+    print(f"\n {sim_name} \n")
 
     sim_dir = bowshock_config[sim_name]['sim_dir']
     mstar = bowshock_config[sim_name]["mstar"] * u.Msun
@@ -38,11 +39,19 @@ for i, sim_name in enumerate(list(bowshock_config.keys())):
     env_name = bowshock_config[sim_name]["env_name"]
     kappa_10 = bowshock_config[sim_name]["kappa_10"] * (u.cm**2 / u.s)
 
+    if not os.path.exists(f"{flash_output_dir}/{sim_dir}"):
+        print(f"{sim_name} does not exist. Skipping,")
+        continue
+
     # get list of all files
     sim_files = []
     for file in os.listdir(f"{flash_output_dir}/{sim_dir}"):
         if file.find("plt") < 0 or file.find("forced") > 0 or file.find("0000") > 0:
             continue
+
+        # if sim_name == "ISM-v100":
+        #     if file.find("16") != -1 or file.find("17") != -1 or file.find("18") != -1:
+        #         continue
         sim_files.append(file)
 
 
@@ -55,6 +64,7 @@ for i, sim_name in enumerate(list(bowshock_config.keys())):
 
     # loop over each file and get the slice
     for isim, sim_file in enumerate(sim_files):
+        print(isim)
         blist, brefs, bns = flash_amr_tools.get_true_blocks(f"{flash_output_dir}/{sim_dir}/{sim_file}")
 
         with h5py.File(f"{flash_output_dir}/{sim_dir}/{sim_file}", "r") as pf:

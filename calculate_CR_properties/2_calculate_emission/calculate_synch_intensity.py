@@ -60,7 +60,15 @@ if not os.path.exists(f"{fig_dir}/synch"):
 
 for i, sim_name in enumerate(list(bowshock_config.keys())):
     print(sim_name)
-    if sim_name != "ISM-v100":
+
+    if sim_name != "ISM-v30":
+        continue
+
+    if sim_name == "ISM-v100":
+        continue
+
+    if sim_name == "ISM-v30-MHD":
+        print("Skipping MHD run since it has no cosmic rays.")
         continue
 
     # write data to h5py file
@@ -82,6 +90,10 @@ for i, sim_name in enumerate(list(bowshock_config.keys())):
     vstar = bowshock_config[sim_name]["vstar"] * (u.km / u.s)
     env_name = bowshock_config[sim_name]["env_name"]
     kappa_10 = bowshock_config[sim_name]["kappa_10"] * (u.cm**2 / u.s)
+
+    if not os.path.exists(f"{flash_output_dir}/{sim_dir}"):
+        print(f"{sim_name} does not exist. Skipping,")
+        continue
 
     # stannd-off radius
     with h5py.File(f"{data_dir}/standoff_radius.h5", "r") as f:
@@ -133,36 +145,33 @@ for i, sim_name in enumerate(list(bowshock_config.keys())):
 
     print(f"List of all simulation files: {sim_files}")
 
-    def compute_synch_lum(args: tuple):
-        """Compute synchrotron luminosity for each simulation file."""
+    # get arguments for synchrotron luminosity computation
+    args_list = [(isim, sim_files[isim]) for isim in range(len(sim_files))]
 
-        isim, sim_file = args
+    for arg in args_list:
+
+        isim, sim_file = arg
+        print(isim)
 
         # loop over each file and get the slice
         blist, _, _ = flash_amr_tools.get_true_blocks(
-            f"{flash_output_dir}/{sim_dir}/{sim_file}"
+            f"{flash_output_dir}/{sim_dir}/{sim_file}", 
         )
 
         with h5py.File(f"{flash_output_dir}/{sim_dir}/{sim_file}", "r") as pf:
             # shma_data = pf["shma"][()][blist]
             dens_data = pf["dens"][()][blist] * (u.g / u.cm**3)
-            vel_data = [
-                pf["velx"][()][blist],
-                pf["vely"][()][blist],
-                pf["velz"][()][blist],
-            ] * (u.cm / u.s)
-            mag_data = [
-                pf["magx"][()][blist],
-                pf["magy"][()][blist],
-                pf["magz"][()][blist],
-            ] * u.G
-            encr_data = pf["encr"][()][blist] * (u.erg / u.g)
+            vel_mag_data = np.sqrt(pf["velx"][()][blist] ** 2 + pf["vely"][()][blist] ** 2 + pf["velz"][()][blist] ** 2) * (u.cm / u.s)
+             # LoS magnetic field  ==  z-axis -> transverse is Bx and By contributions
+            Blos_data = (np.abs(pf["magx"][()][blist]) + np.abs(pf["magy"][()][blist])) * u.G
+            encr_data = pf["encr"][()][blist] * pf["dens"][()][blist] * (u.erg / u.cm**3)
             bsize = pf["block size"][()][blist]
 
             time = pf["real scalars"][()][0][1] * u.s  # time in seconds
 
         # calculate injection index
-        alpha_inj_data = np.full_like(dens_data.value, fill_value=4.0)
+        # alpha_inj_data = np.full_like(dens_data.value, fill_value=4.0)
+        alpha_inj = 4.0
         # gam = 5/3
 
         # xs_data = (gam + 1) * shma_data**2 / (2 + (gam - 1) * shma_data**2)
@@ -171,8 +180,7 @@ for i, sim_name in enumerate(list(bowshock_config.keys())):
         # alpha_inj_data[alpha_inj_data < 4] = 4  # soft spectral index for background CRs
         # alpha_inj_data[alpha_inj_data >= 10] = 10  # hard cutoff for soft spectra
 
-        # computing velocity magnitude3
-        vel_mag_data = np.sqrt(vel_data[0] ** 2 + vel_data[1] ** 2 + vel_data[2] ** 2)
+        # constrain range of the velocity magnitude
         vel_mag_data[vel_mag_data.to(u.km / u.s) >= 5e3 * u.km / u.s] = 5e3 * u.km / u.s
         vel_mag_data[vel_mag_data.to(u.km / u.s) <= 1e-2 * u.km / u.s] = (
             1e-2 * u.km / u.s
@@ -187,8 +195,7 @@ for i, sim_name in enumerate(list(bowshock_config.keys())):
         # necr_data = (encr_data * dens_data / eneratio_data).to(u.cm**-3)
         # del eneratio_data
 
-        # LoS magnetic field  ==  z-axis -> transverse is Bx and By contributions
-        Blos_data = np.abs(mag_data[0]) + np.abs(mag_data[1])
+        # here also constrain range of magnetic field
         Blos_data[Blos_data < 1e-9 * u.G] = 1e-9 * u.G
         Blos_data[Blos_data > 1e-4 * u.G] = 1e-4 * u.G
 
@@ -197,7 +204,7 @@ for i, sim_name in enumerate(list(bowshock_config.keys())):
             10.0
             ** f_log10_ensynchratio(
                 (
-                    alpha_inj_data,
+                    alpha_inj,
                     np.log10(vel_mag_data.to_value(u.km / u.s)),
                     np.log10(dens_data.to_value(u.g / u.cm**3)),
                     np.log10(Blos_data.to_value(u.G)),
@@ -205,16 +212,16 @@ for i, sim_name in enumerate(list(bowshock_config.keys())):
             )
             * u.GeV
         )
+        del dens_data
+        del vel_mag_data
 
         # nele_synch_data
-        nelesynch_data = ((encr_data * dens_data)[..., None] / ensynchratio_data).to(
+        nelesynch_data = (encr_data[..., None] / ensynchratio_data).to(
             u.cm**-3
         )
 
-        del dens_data
         del encr_data
-        del vel_mag_data
-        del alpha_inj_data
+        # del alpha_inj_data
         del ensynchratio_data
 
         # plot the specific synchrotron intensity -> E dN/(dV dt), in units of erg / s / Hz / cm^3
@@ -229,6 +236,9 @@ for i, sim_name in enumerate(list(bowshock_config.keys())):
             synch_coeff[..., None] * (u.erg * u.s**-1 * u.Hz**-1) * nelesynch_data
         )
 
+        del Blos_data
+        del synch_coeff
+
         # # compute synchrotron luminosity
         cell_size_data = (
             np.tile(bsize[:, 0] / 8.0, reps=(8, 8, 8)).reshape(
@@ -236,24 +246,15 @@ for i, sim_name in enumerate(list(bowshock_config.keys())):
             )[..., None]
             * u.cm
         )
-        synch_lum = np.sum(
+        synch_lum_arr[isim, :] = np.sum(
             synch_intens_data.to(u.erg / u.s / u.Hz / u.pc**3)
             * cell_size_data.to(u.pc) ** 3,
             axis=(0, 1, 2, 3),
         )
+        times[isim] = time
 
         del synch_intens_data
-
-        return isim, time, synch_lum
-    
-    # get arguments for synchrotron luminosity computation
-    args_list = [(isim, sim_files[isim]) for isim in range(len(sim_files))]
-    
-    results = Parallel(n_jobs=args.nprocs)(delayed(compute_synch_lum)(arg) for arg in args_list)
-
-    for isim, t, Lsynch in results:
-        synch_lum_arr[isim, :] = Lsynch
-        times[isim] = t
+        del cell_size_data
 
 
         # if isim % 100 == 0 and isim != 0:

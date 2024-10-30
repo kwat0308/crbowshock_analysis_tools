@@ -7,11 +7,17 @@ import astropy.units as u
 def get_transformed_data(pf : h5py.File, field : str, blist):
     '''Get data transformed according to the definition'''
 
-    if field == "vel" or field == "mag":
+    if field == "mag":
         field_data = pf[f"{field}x"][()][blist]**2
         field_data += pf[f"{field}y"][()][blist]**2 
         field_data += pf[f"{field}z"][()][blist]**2 
         field_data = np.sqrt(field_data)
+    if field == "vel":
+        field_data = pf[f"{field}x"][()][blist]**2
+        field_data += pf[f"{field}y"][()][blist]**2 
+        field_data += pf[f"{field}z"][()][blist]**2 
+        field_data = np.sqrt(field_data) * u.cm / u.s
+        field_data = field_data.to(u.km/u.s)
     elif field == "pres":  # convert to P/kB
         field_data = pf["pres"][()][blist] * (u.g / u.cm / u.s**2) / const.k_B.cgs
         field_data = field_data.to("K/cm**3")

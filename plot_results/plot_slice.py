@@ -9,7 +9,7 @@ import matplotlib.cm as cm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from transform_data import get_transformed_data
-from field_config import field_cmaps, field_lims, field_labels, shck_color_list, shck_tick_num, shck_ticks
+from field_config import field_cmaps, field_lims, field_labels, shck_color_list, shck_tick_num, shck_ticks, field_scales
 
 import flash_amr_tools
 import h5py
@@ -26,7 +26,6 @@ parser.add_argument("--axis", action="store", type=int, help="Axis of slice", de
 args = parser.parse_args()
 
 fig_dir = "/home/kwatanabe/Projects/cr-bowshocks/figures/slices"
-# flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/cr_bowshock_outputs"
 flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/outputs"
 
 # load the bowshock config
@@ -63,8 +62,8 @@ sim_files = sorted(sim_files)[::-1]
 # loop over each file and get the slice
 for it, sim_file in enumerate(sim_files):
     print(sim_file)
-    if it % 50 != 0:
-        continue
+    # if it > 0:
+    #     continue
     blist, brefs, bns = flash_amr_tools.get_true_blocks(f"{sim_dir}/{sim_file}")
 
     # open file
@@ -125,6 +124,9 @@ for it, sim_file in enumerate(sim_files):
         cb.ax.set_ylabel(field_labels[field], fontsize=20)
         cb.ax.tick_params(axis='both', which='major', size=8, labelsize=18)
         cb.ax.tick_params(axis='both', which='minor', size=6, labelsize=18)
+
+        # scales
+        cb.ax.set_yscale(field_scales[field])
 
     # save
     fig.savefig(f"{fig_dir}/{sim_name}/{field}/{field}_{sim_file[-4:]}.png", bbox_inches="tight", dpi=300)
