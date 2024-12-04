@@ -4,7 +4,6 @@ import h5py
 import astropy.units as u
 
 from transform_data import get_transformed_data
-from bowshock_config import bowshock_config
 
 def get_polar_grid(shape : tuple, bbox, derivs=False):
     '''Convert from 3D uniform grid to 2D polar grid (since we average over azimuthal grid anyways)'''
@@ -46,57 +45,57 @@ def get_shock_mask(pf : h5py.File, blist, shock="outer", dens_thresh=1e-27):
     else:
         raise Exception("shock type can only be 'outer' or 'term'.")
     
-def find_common_sims(time : float, output_dir : str):
-    '''Find & return all sims that has this timestamp, time in cgs'''
+# def find_common_sims(time : float, output_dir : str):
+#     '''Find & return all sims that has this timestamp, time in cgs'''
 
-    common_sims = []
-    common_sim_files = []
+#     common_sims = []
+#     common_sim_files = []
 
-    for sim_name in list(bowshock_config.keys()):
-        sim_dir = bowshock_config[sim_name]["sim_dir"]
-        if sim_dir not in os.listdir(output_dir):
-            print(f"Simulation for {sim_name} not found. Skipping.")
-            continue
+#     for sim_name in list(bowshock_config.keys()):
+#         sim_dir = bowshock_config[sim_name]["sim_dir"]
+#         if sim_dir not in os.listdir(output_dir):
+#             print(f"Simulation for {sim_name} not found. Skipping.")
+#             continue
 
-        # get list of all files
-        sim_files = []
-        for file in os.listdir(f"{output_dir}/{sim_dir}"):
-            if file.find("plt") < 0:
-                continue
-            sim_files.append(file)
+#         # get list of all files
+#         sim_files = []
+#         for file in os.listdir(f"{output_dir}/{sim_dir}"):
+#             if file.find("plt") < 0:
+#                 continue
+#             sim_files.append(file)
 
-        for sim_file in sim_files:
-            with h5py.File(os.path.join(output_dir, sim_dir, sim_file), "r") as pf:
-                curr_time = pf["real scalars"][()][0][1]
-                if np.isclose(curr_time, time, rtol=1, atol=1):
-                    common_sims.append(sim_name)
-                    common_sim_files.append(sim_file)
-                    break
+#         for sim_file in sim_files:
+#             with h5py.File(os.path.join(output_dir, sim_dir, sim_file), "r") as pf:
+#                 curr_time = pf["real scalars"][()][0][1]
+#                 if np.isclose(curr_time, time, rtol=1, atol=1):
+#                     common_sims.append(sim_name)
+#                     common_sim_files.append(sim_file)
+#                     break
 
-    return common_sims, common_sim_files
+#     return common_sims, common_sim_files
 
-def get_file_at_time(sim_name : str, time : float, output_dir : str):
-    '''Get the file at the indicated time'''
-    sim_dir = bowshock_config[sim_name]["sim_dir"]
-    if sim_dir not in os.listdir(output_dir):
-        print(f"Simulation for {sim_name} not found. Skipping.")
-        return
+# def get_file_at_time(sim_name : str, time : float, output_dir : str):
+#     '''Get the file at the indicated time'''
+#     sim_dir = bowshock_config[sim_name]["sim_dir"]
+#     if sim_dir not in os.listdir(output_dir):
+#         print(f"Simulation for {sim_name} not found. Skipping.")
+#         return
 
-    # get list of all files
-    sim_files = []
-    for file in os.listdir(f"{output_dir}/{sim_dir}"):
-        if file.find("plt") < 0 or file.find("forced") > 0:
-            continue
-        sim_files.append(file)
+#     # get list of all files
+#     sim_files = []
+#     for file in os.listdir(f"{output_dir}/{sim_dir}"):
+#         if file.find("plt") < 0 or file.find("forced") > 0:
+#             continue
+#         sim_files.append(file)
 
-    sim_files = sorted(sim_files)
+#     sim_files = sorted(sim_files)
 
-    curr_times = []
-    for sim_file in sim_files:
-        with h5py.File(os.path.join(output_dir, sim_dir, sim_file), "r") as pf:
-            curr_times.append((pf["real scalars"][()][0][1] * u.s).to_value(u.kyr))
+#     curr_times = []
+#     for sim_file in sim_files:
+#         with h5py.File(os.path.join(output_dir, sim_dir, sim_file), "r") as pf:
+#             curr_times.append((pf["real scalars"][()][0][1] * u.s).to_value(u.kyr))
 
-    return sim_files[np.digitize(time, np.array(curr_times), right=True)]
+#     return sim_files[np.digitize(time, np.array(curr_times), right=True)]
 
     
 

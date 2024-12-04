@@ -12,7 +12,7 @@ def get_transformed_data(pf : h5py.File, field : str, blist):
         field_data += pf[f"{field}y"][()][blist]**2 
         field_data += pf[f"{field}z"][()][blist]**2 
         field_data = np.sqrt(field_data)
-    if field == "vel":
+    elif field == "vel":
         field_data = pf[f"{field}x"][()][blist]**2
         field_data += pf[f"{field}y"][()][blist]**2 
         field_data += pf[f"{field}z"][()][blist]**2 

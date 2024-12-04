@@ -9,13 +9,16 @@ import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 from mpl_toolkits.axes_grid1  import make_axes_locatable
 
-from bowshock_config import bowshock_config
-
 import flash_amr_tools
 
-flash_output_dir = "/home/watanabe/Projects/meerkat_bowshocks/outputs"
-fig_dir = "/home/watanabe/Projects/meerkat_bowshocks/figures"
-data_dir = "/home/watanabe/Projects/meerkat_bowshocks/crbowshock_analysis_tools/data"
+import json
+
+flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/outputs"
+fig_dir = "/home/kwatanabe/Projects/cr-bowshocks/figures"
+data_dir = "/home/kwatanabe/Projects/cr-bowshocks/crbowshock_analysis_tools/data"
+
+# load the bowshock config
+bowshock_config = json.load(open("../../config/bowshock_config.json", "r"))["config"]
 
 import argparse
 
@@ -73,14 +76,16 @@ for file in os.listdir(f"{flash_output_dir}/{sim_dir}"):
 
 
 # sort 
-sim_files = sorted(sim_files)
+sim_files = sorted(sim_files)[::-1]
 
 # truncate to every 10 plot files if we have over 200 plot files
 if len(sim_files) > 200:
     sim_files = sim_files[::10]
 
 # loop over each file and get the slice
-for sim_file in sim_files:
+for isim, sim_file in enumerate(sim_files):
+    # if isim > 0:
+    #     continue
     blist, brefs, bns = flash_amr_tools.get_true_blocks(f"{flash_output_dir}/{sim_dir}/{sim_file}")
 
     with h5py.File(f"{flash_output_dir}/{sim_dir}/{sim_file}", "r") as pf:
@@ -91,16 +96,17 @@ for sim_file in sim_files:
         ref_lvl = pf["refine level"][()][blist]
         bbox = pf["bounding box"][()][blist]
         bsize = pf["block size"][()][blist]
+        gam = pf["geff"][()][blist]
 
     low_cor, up_cor = bbox[0,:,0], bbox[-1,:,1]
 
     # calculate injection index
-    gam = 5/3
+    # gam = 5/3
 
     xs_data = (gam + 1) * shma_data**2 / (2 + (gam - 1) * shma_data**2)
     alpha_inj_data = 3 * xs_data / (xs_data - 1)
     # force minimal and maximal values
-    alpha_inj_data[alpha_inj_data < 4] = 6  # soft spectral index for background CRs
+    alpha_inj_data[alpha_inj_data < 4] = 4  # soft spectral index for background CRs
     alpha_inj_data[alpha_inj_data >= 10] = 10  # similarly
 
     # computing velocity magnitude3
@@ -111,15 +117,16 @@ for sim_file in sim_files:
     ncr_data = (encr_data * dens_data / enratio_data).to(u.cm**-3)
 
     # finally plot the slice
-    if not os.path.exists(f"{fig_dir}/{sim_name}/ncr"):
-        os.mkdir(f"{fig_dir}/{sim_name}/ncr")
+    if not os.path.exists(f"{fig_dir}/slices/{sim_name}/ncr"):
+        os.mkdir(f"{fig_dir}/slices/{sim_name}/ncr")
 
     ncr_sl = flash_amr_tools.get_slice(ncr_data, pos=args.pos, axis=args.axis, ref_lvl=ref_lvl, bbox=bbox, bsize=bsize, brefs=brefs, bns=bns)
+    print(ncr_sl.min(), ncr_sl.max())
 
     # create imshow of this
     fig, ax = plt.subplots(figsize=(8,8))
 
-    norm = mcolors.LogNorm(vmin=1e-17, vmax=1e-9, clip=True)
+    norm = mcolors.LogNorm(vmin=1e-14, vmax=1e-8, clip=True)
     extent = ([low_cor[0], up_cor[0], low_cor[1], up_cor[1]] * u.cm).to_value(u.pc)
 
     im = ax.imshow(ncr_sl.T, norm=norm, cmap=cm.PuBuGn, origin="lower", extent=extent)
@@ -142,6 +149,6 @@ for sim_file in sim_files:
     cb.ax.tick_params(axis='both', which='minor', size=6, labelsize=18)
 
     # save
-    fig.savefig(f"{fig_dir}/{sim_name}/ncr/ncr_sl_axis{args.axis}_{sim_file[-4:]}.png", bbox_inches="tight", dpi=300)
+    fig.savefig(f"{fig_dir}/slices/{sim_name}/ncr/ncr_{sim_file[-4:]}.png", bbox_inches="tight", dpi=300)
 
     plt.close(fig)

@@ -21,6 +21,7 @@ field_labels = {
     "crac": r"$\eta(\mathcal{M}_1, \theta_B)$",
     "plasma_beta":r"$\beta = \sqrt{P_\mathrm{th} / P_\mathrm{mag}}$",
     "geff":r"$\gamma_\mathrm{eff}$",
+    "alpha_inj":r"$\alpha_\mathrm{inj}$"
 }
 field_cmaps = {
     "dens" : cm.Oranges,
@@ -37,7 +38,8 @@ field_cmaps = {
     "mgob" : cm.viridis,
     "crac":cm.Reds_r,
     "plasma_beta": cm.PiYG,
-    "geff":cm.cividis
+    "geff":cm.cividis,
+    "alpha_inj":cm.winter,
 }
 field_scales = {
     "dens" : "log",
@@ -54,7 +56,8 @@ field_scales = {
     "mgob" : "linear",
     "crac": "linear",
     "plasma_beta": "log",
-    "geff": "linear"
+    "geff": "linear",
+    "alpha_inj":"linear"
 }
 field_lims = {
     "dens" : [5e-29, 5e-23],
@@ -70,4 +73,5 @@ field_lims = {
     "crac": [0.0, 1.0],
     "plasma_beta" : [1e-3, 1e3],
     "geff":[1.3, 1.7],
+    "alpha_inj":[4, 8]
 }

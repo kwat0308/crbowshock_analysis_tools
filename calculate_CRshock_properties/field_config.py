@@ -13,7 +13,10 @@ field_labels = {
     "encr" : "$\epsilon_\mathrm{CR}$ / erg cm$^{-3}$",
     "mgob": r"$\theta_B$ / deg",
     "crac": r"$\eta(\mathcal{M}_1, \theta_B)$",
-    "geff":r"$\gamma_\mathrm{eff}$"
+    "geff":r"$\gamma_\mathrm{eff}$",
+    "alpha_inj":r"$\alpha_\mathrm{inj}$",
+    "mag" : r"$|\vec{B}|$ / $\mu$G",
+    "vel" : r"$|\vec{v}|$ / km s$^{-1}$"
 }
 field_lims = {
     "dens" : [5e-29, 5e-21],
@@ -23,9 +26,12 @@ field_lims = {
     # },
     "shma":[1.0, 60],
     "encr":[1e-15, 1e-10],
-    "mgob" : [-5, 185.0],
-    "crac": [0.0, 0.2],
-    "geff":[1.5, 1.75],
+    "mgob" : [-5, 85],
+    "crac": [0.0, 0.35],
+    "geff":[1.5, 1.69],
+    "alpha_inj":[2.0, 8.0],
+    "mag" : [0.8, 100],
+    "vel" : [500, 5000]
 }
 field_scales = {
     "dens":"log",
@@ -33,5 +39,8 @@ field_scales = {
     "shma":"log",
     "crac":"linear",
     "mgob":"linear",
-    "geff":"linear"
+    "geff":"linear",
+    "alpha_inj":"linear",
+    "vel" : "log",
+    "mag" : "linear"
 }

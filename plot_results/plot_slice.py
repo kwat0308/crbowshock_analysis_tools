@@ -48,7 +48,7 @@ if not os.path.exists(f"{fig_dir}/{sim_name}/{field}"):
 # get list of all files
 sim_files = []
 for file in os.listdir(sim_dir):
-    if file.find("plt") < 0:
+    if file.find("plt") < 0 or file.find('forced') > 0:
         continue
     sim_files.append(file)
 

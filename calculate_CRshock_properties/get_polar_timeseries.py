@@ -37,7 +37,7 @@ parser.add_argument(
 parser.add_argument(
     "--nprocs",
     action="store",
-    default=3,
+    default=2,
     help="Number of cores to use for parallelisation"
 )
 
@@ -49,7 +49,7 @@ flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/outputs"
 data_dir = "/home/kwatanabe/Projects/cr-bowshocks/crbowshock_analysis_tools/data"
 
 # initial parameters
-field_names = ["dens", "encr", "shma", "crac", "mgob", "geff"]
+field_names = ["alpha_inj", "encr", "shma", "geff", "dens", "mgob", "vel", "mag", "crac"]
 theta_ranges = [(0, 10), (10,20),(20,30), (30, 45), (45,60), (60,75), (75,90), (90,120), (120,150),(150,180)]
 
 # load the bowshock config
@@ -57,7 +57,7 @@ bowshock_config = json.load(open("../config/bowshock_config.json", "r"))["config
 
 assert args.sim_name in list(bowshock_config.keys()), f"Simulation {args.sim_name} not in bowshock_config.json"
 
-for s, shock in enumerate(["outer"]):
+for s, shock in enumerate(["outer", "term"]):
 
     sim_dir = bowshock_config[args.sim_name]["sim_dir"]
 
@@ -71,6 +71,9 @@ for s, shock in enumerate(["outer"]):
     # sort 
     sim_files = sorted(sim_files)
 
+    if args.sim_name == "ISM-v60":
+        sim_files = sim_files[:21]
+
     times = np.zeros(len(sim_files))
     field_polar_vals = np.zeros((len(field_names), len(sim_files), len(theta_ranges)))
 
@@ -79,7 +82,7 @@ for s, shock in enumerate(["outer"]):
         it, ifld, sim_file, field_name = polar_args
         print(sim_file[-4:], field_name)
 
-        blist, brefs, bns = flash_amr_tools.get_true_blocks(f"{flash_output_dir}/{sim_dir}/{sim_file}", max_ref_given=7)
+        blist, brefs, bns = flash_amr_tools.get_true_blocks(f"{flash_output_dir}/{sim_dir}/{sim_file}", max_ref_given=7, min_ref_given=4)
 
         # open file
         pf = h5py.File(f"{flash_output_dir}/{sim_dir}/{sim_file}")
@@ -105,7 +108,7 @@ for s, shock in enumerate(["outer"]):
         _, TH, _, _ = get_polar_grid(field_cube.shape, bbox, derivs=False)
 
         field_polar_val = np.array([
-            np.mean(field_cube[(shck_mask_cube == True) & (TH >= np.deg2rad(theta_ranges[i][0])) & (TH < np.deg2rad(theta_ranges[i][1]))]) for i in range(len(theta_ranges))
+            np.mean(field_cube[(shck_mask_cube == True) & (TH >= np.deg2rad(theta_ranges[i][0])) & (TH < np.deg2rad(theta_ranges[i][1])) & (~np.isnan(field_cube))]) for i in range(len(theta_ranges))
         ])
 
         del TH
