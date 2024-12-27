@@ -16,7 +16,8 @@ field_labels = {
     "geff":r"$\gamma_\mathrm{eff}$",
     "alpha_inj":r"$\alpha_\mathrm{inj}$",
     "mag" : r"$|\vec{B}|$ / $\mu$G",
-    "vel" : r"$|\vec{v}|$ / km s$^{-1}$"
+    "vel" : r"$|\vec{v}|$ / km s$^{-1}$",
+    "pres" : "P / $k_B$ / K cm$^{-3}$",
 }
 field_lims = {
     "dens" : [5e-29, 5e-21],
@@ -28,10 +29,11 @@ field_lims = {
     "encr":[1e-15, 1e-10],
     "mgob" : [-5, 85],
     "crac": [0.0, 0.35],
-    "geff":[1.5, 1.69],
-    "alpha_inj":[2.0, 8.0],
+    "geff":[1.47, 1.69],
+    "alpha_inj":[3.0, 8.0],
     "mag" : [0.8, 100],
-    "vel" : [500, 5000]
+    "vel" : [500, 5000],
+    "pres" : [0.9, 5e5],
 }
 field_scales = {
     "dens":"log",
@@ -42,5 +44,23 @@ field_scales = {
     "geff":"linear",
     "alpha_inj":"linear",
     "vel" : "log",
-    "mag" : "linear"
+    "mag" : "linear",
+    "pres":"log",
+}
+field_cmaps = {
+    "dens" : cm.Oranges,
+    "temp" : cm.coolwarm,
+    "pres" : cm.plasma,
+    "vel" : cm.YlGnBu,
+    "mag" : cm.magma,
+    "ener":cm.BuPu,
+    "shck" : shck_cmap,
+    "shma" : cm.Blues,
+    "encr" : cm.viridis,
+    "entropy" : cm.Blues,
+    "mach" : cm.Blues,
+    "mgob" : cm.viridis,
+    "crac":cm.Reds_r,
+    "plasma_beta": cm.PiYG,
+    "geff":cm.cividis
 }

@@ -47,4 +47,17 @@ def get_transformed_data(pf : h5py.File, field : str, blist):
     return field_data
      
 
+def get_shock_mask(pf : h5py.File, blist, shock="outer", dens_thresh=1e-27):
+    '''Get shock mask (outer or termination shock) based on density criterion'''
+
+    dens_data = pf["dens"][()][blist]
+    shck_data = get_transformed_data(pf, "shck", blist)
+
+    if shock == "outer":
+        return (shck_data > 0) & (dens_data > dens_thresh)
+    elif shock == "term":
+        return (shck_data > 0) & (dens_data < dens_thresh)
+    else:
+        raise Exception("shock type can only be 'outer' or 'term'.")
+
 
