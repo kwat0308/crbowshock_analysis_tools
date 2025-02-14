@@ -20,19 +20,19 @@ field_labels = {
     "pres" : "P / $k_B$ / K cm$^{-3}$",
 }
 field_lims = {
-    "dens" : [5e-29, 5e-21],
+    "dens" : [5e-30, 5e-23],
     # "shma" : {
     #     "outer":[0.0, 15],
     #     "term":[0.0, 35],
     # },
-    "shma":[1.0, 60],
-    "encr":[1e-15, 1e-10],
+    "shma":[0.8, 60],
+    "encr":[1e-15, 1e-9],
     "mgob" : [-5, 85],
     "crac": [0.0, 0.35],
-    "geff":[1.47, 1.69],
-    "alpha_inj":[3.0, 8.0],
+    "geff":[1.33, 1.69],
+    "alpha_inj":[3.0, 10.0],
     "mag" : [0.8, 100],
-    "vel" : [500, 5000],
+    "vel" : [0.9, 3e4],
     "pres" : [0.9, 5e5],
 }
 field_scales = {
@@ -55,7 +55,7 @@ field_cmaps = {
     "mag" : cm.magma,
     "ener":cm.BuPu,
     "shck" : shck_cmap,
-    "shma" : cm.Blues,
+    "shma" : cm.Reds_r,
     "encr" : cm.viridis,
     "entropy" : cm.Blues,
     "mach" : cm.Blues,

@@ -17,8 +17,8 @@ do
    esac
 done
 
-data_dir="/home/kwatanabe/Projects/cr-bowshocks/figures/slices/$SIM"
-ani_dir="/home/kwatanabe/Projects/cr-bowshocks/figures/slices/animations/$SIM"
+data_dir="/home/kwatanabe/Projects/cr-bowshocks/figures/slices_bx/$SIM"
+ani_dir="/home/kwatanabe/Projects/cr-bowshocks/figures/animations_bx/$SIM"
 
 if [ ! -d "$ani_dir" ]; then
     mkdir "$ani_dir"
@@ -31,6 +31,6 @@ do
     if [ -d "$field_dir" ]; then
         echo "Processing field: $field_dir"
         field=$(basename $field_dir)
-        ffmpeg -framerate 10 -pattern_type glob -i "$field_dir/"$field"_*.png" $ani_dir/"$field"_anim.mp4
+        ffmpeg -framerate 10 -pattern_type glob -i "$field_dir/"$field"_*.png" -f mp4 $ani_dir/"$field"_anim.mp4
     fi
 done

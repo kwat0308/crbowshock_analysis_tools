@@ -25,8 +25,8 @@ parser.add_argument("--axis", action="store", type=int, help="Axis of slice", de
 
 args = parser.parse_args()
 
-fig_dir = "/home/kwatanabe/Projects/cr-bowshocks/figures/slices"
-flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/outputs"
+fig_dir = "/home/kwatanabe/Projects/cr-bowshocks/figures/slices_bx"
+flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/outputs_new"
 
 # load the bowshock config
 bowshock_config = json.load(open("../config/bowshock_config.json", "r"))["config"]
@@ -53,7 +53,7 @@ for file in os.listdir(sim_dir):
     sim_files.append(file)
 
 # sort 
-sim_files = sorted(sim_files)[::-1]
+sim_files = sorted(sim_files)
 
 # truncate to every 10 plot files if we have over 200 plot files
 # if len(sim_files) > 200:
@@ -62,6 +62,8 @@ sim_files = sorted(sim_files)[::-1]
 # loop over each file and get the slice
 for it, sim_file in enumerate(sim_files):
     print(sim_file)
+    if it == 3 or it == 4:
+        continue
     # if it > 0:
     #     continue
     blist, brefs, bns = flash_amr_tools.get_true_blocks(f"{sim_dir}/{sim_file}")
@@ -74,6 +76,8 @@ for it, sim_file in enumerate(sim_files):
     bsize = pf["block size"][()][blist]
     field_data = get_transformed_data(pf, field, blist)
     pf.close()
+
+    print(field_data.max(), field_data.min())
 
 
     low_cor, up_cor = bbox[0,:,0], bbox[-1,:,1]

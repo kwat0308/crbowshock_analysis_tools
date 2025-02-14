@@ -9,7 +9,6 @@ python plot_slice.py -S ISM-v30 -F shck
 python plot_slice.py -S ISM-v30 -F shma
 python plot_slice.py -S ISM-v30 -F geff
 python plot_slice.py -S ISM-v30 -F crac
-python plot_slice.py -S ISM-v30 -F vel
 python plot_slice.py -S ISM-v30 -F mag
 python plot_slice.py -S ISM-v30 -F mgob
 
@@ -18,19 +17,8 @@ python plot_slice.py -S ISM-v30-MHD -F vel
 python plot_slice.py -S ISM-v30-MHD -F temp
 python plot_slice.py -S ISM-v30-MHD -F pres
 python plot_slice.py -S ISM-v30-MHD -F mag
-
-python plot_slice.py -S ISM-v60 -F dens
-python plot_slice.py -S ISM-v60 -F vel
-python plot_slice.py -S ISM-v60 -F temp
-python plot_slice.py -S ISM-v60 -F pres
-python plot_slice.py -S ISM-v60 -F encr
-python plot_slice.py -S ISM-v60 -F shck
-python plot_slice.py -S ISM-v60 -F shma
-python plot_slice.py -S ISM-v60 -F geff
-python plot_slice.py -S ISM-v60 -F vel
-python plot_slice.py -S ISM-v60 -F mag
-python plot_slice.py -S ISM-v60 -F crac
-python plot_slice.py -S ISM-v60 -F mgob
+python plot_slice.py -S ISM-v30-MHD -F shck
+python plot_slice.py -S ISM-v30-MHD -F shma
 
 python plot_slice.py -S ISM-v100 -F dens
 python plot_slice.py -S ISM-v100 -F vel
@@ -45,18 +33,18 @@ python plot_slice.py -S ISM-v100 -F mag
 python plot_slice.py -S ISM-v100 -F crac
 python plot_slice.py -S ISM-v100 -F mgob
 
-python plot_slice.py -S ISM-v30-LDiff -F dens
-python plot_slice.py -S ISM-v30-LDiff -F vel
-python plot_slice.py -S ISM-v30-LDiff -F temp
-python plot_slice.py -S ISM-v30-LDiff -F pres
-python plot_slice.py -S ISM-v30-LDiff -F encr
-python plot_slice.py -S ISM-v30-LDiff -F shck
-python plot_slice.py -S ISM-v30-LDiff -F shma
-python plot_slice.py -S ISM-v30-LDiff -F geff
-python plot_slice.py -S ISM-v30-LDiff -F vel
-python plot_slice.py -S ISM-v30-LDiff -F mag
-python plot_slice.py -S ISM-v30-LDiff -F crac
-python plot_slice.py -S ISM-v30-LDiff -F mgob
+python plot_slice.py -S ISM-v30-MDiff -F dens
+python plot_slice.py -S ISM-v30-MDiff -F vel
+python plot_slice.py -S ISM-v30-MDiff -F temp
+python plot_slice.py -S ISM-v30-MDiff -F pres
+python plot_slice.py -S ISM-v30-MDiff -F encr
+python plot_slice.py -S ISM-v30-MDiff -F shck
+python plot_slice.py -S ISM-v30-MDiff -F shma
+python plot_slice.py -S ISM-v30-MDiff -F geff
+python plot_slice.py -S ISM-v30-MDiff -F vel
+python plot_slice.py -S ISM-v30-MDiff -F mag
+python plot_slice.py -S ISM-v30-MDiff -F crac
+python plot_slice.py -S ISM-v30-MDiff -F mgob
 
 python plot_slice.py -S ISM-v30-HDiff -F dens
 python plot_slice.py -S ISM-v30-HDiff -F vel

@@ -45,12 +45,12 @@ args = parser.parse_args()
 
 
 # flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/cr_bowshock_outputs"
-flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/outputs"
+flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/outputs_new"
 data_dir = "/home/kwatanabe/Projects/cr-bowshocks/crbowshock_analysis_tools/data"
 
 # initial parameters
-field_names = ["alpha_inj", "encr", "shma", "geff", "dens", "mgob", "vel", "mag", "crac"]
-theta_ranges = [(0, 10), (10,20),(20,30), (30, 45), (45,60), (60,75), (75,90), (90,120), (120,150),(150,180)]
+field_names = ["alpha_inj", "encr", "shma", "geff", "dens", "mgob", "vel", "mag"]
+theta_ranges = [(0,30), (30,60), (60,90), (90,120), (120,150),(150,180)]
 
 # load the bowshock config
 bowshock_config = json.load(open("../config/bowshock_config.json", "r"))["config"]
@@ -71,9 +71,6 @@ for s, shock in enumerate(["outer", "term"]):
     # sort 
     sim_files = sorted(sim_files)
 
-    if args.sim_name == "ISM-v60":
-        sim_files = sim_files[:21]
-
     times = np.zeros(len(sim_files))
     field_polar_vals = np.zeros((len(field_names), len(sim_files), len(theta_ranges)))
 
@@ -82,7 +79,7 @@ for s, shock in enumerate(["outer", "term"]):
         it, ifld, sim_file, field_name = polar_args
         print(sim_file[-4:], field_name)
 
-        blist, brefs, bns = flash_amr_tools.get_true_blocks(f"{flash_output_dir}/{sim_dir}/{sim_file}", max_ref_given=7, min_ref_given=4)
+        blist, brefs, bns = flash_amr_tools.get_true_blocks(f"{flash_output_dir}/{sim_dir}/{sim_file}")
 
         # open file
         pf = h5py.File(f"{flash_output_dir}/{sim_dir}/{sim_file}")
@@ -126,7 +123,7 @@ for s, shock in enumerate(["outer", "term"]):
         field_polar_vals[ifld, it, :] = field_vals
 
     # store the data
-    with h5py.File(f"{data_dir}/polar_time_series_{shock}.h5", "a") as pf:
+    with h5py.File(f"{data_dir}/polar_time_series_{shock}_1.h5", "a") as pf:
         if args.sim_name in list(pf.keys()):
             sim_gr = pf[args.sim_name]
             del pf[args.sim_name]["times"]
@@ -144,5 +141,5 @@ for s, shock in enumerate(["outer", "term"]):
             
             sim_gr.create_dataset(field, data=field_polar_vals[ifld,...])
 
-    with h5py.File(f"{data_dir}/polar_time_series_{shock}.h5", "a") as pf:
+    with h5py.File(f"{data_dir}/polar_time_series_{shock}_1.h5", "a") as pf:
         print(pf[args.sim_name].keys())

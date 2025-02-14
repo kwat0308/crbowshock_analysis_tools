@@ -35,6 +35,12 @@ def get_transformed_data(pf : h5py.File, field : str, blist):
 
     elif field == "encr":
         field_data = pf["encr"][()][blist] * pf["dens"][()][blist]
+    elif field == "alpha_inj":
+        shma_data = pf["shma"][()][blist]
+        geff_data = pf["geff"][()][blist]
+        xs_data = (geff_data + 1) * shma_data**2 / (2 + (geff_data - 1) * shma_data**2)
+        field_data = 3 * xs_data / (xs_data - 1)
+        # field_data[shma_data < 1] = np.nan
     else:
         field_data = pf[field][()][blist]
 

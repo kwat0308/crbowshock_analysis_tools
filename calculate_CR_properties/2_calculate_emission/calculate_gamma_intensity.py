@@ -13,7 +13,7 @@ from mpl_toolkits.axes_grid1  import make_axes_locatable
 import flash_amr_tools
 import argparse
 
-flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/outputs"
+flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/outputs_new"
 fig_dir = "/home/kwatanabe/Projects/cr-bowshocks/figures"
 data_dir = "/home/kwatanabe/Projects/cr-bowshocks/crbowshock_analysis_tools/data"
 
@@ -76,44 +76,23 @@ for isim, sim_file in enumerate(sim_files):
     encr_data = (encr_data * dens_data).to(u.erg / u.pc**3)
     gam_intens_data = (1 / 3 * Bhadr_coeff * dens_data.to(u.g / u.pc**3) * encr_data).to(u.erg / u.s / u.cm**3)
 
-    if isim % 10 == 0 and isim != 0:
-        # finally plot the slice
-        if not os.path.exists(f"{fig_dir}/gamma/{sim_name}"):
-            os.mkdir(f"{fig_dir}/gamma/{sim_name}")
+    if isim % 5 == 0:   # in 50 kyr intervals
 
         gam_intens_sl = flash_amr_tools.get_slice(gam_intens_data, pos=0.0, axis=2, ref_lvl=ref_lvl, bbox=bbox, bsize=bsize, brefs=brefs, bns=bns)
 
-        # create imshow of this
-        fig, ax = plt.subplots(figsize=(8,8))
+        # write data to h5py file
+        with h5py.File(f"{data_dir}/emission_data_gamma.h5", "a") as pf:
+            sim_gr = pf.create_group(sim_name) if sim_name not in pf.keys() else pf[sim_name]
+            if "slices" in sim_gr.keys():
+                del sim_gr["slices"]
 
-        # norm = mcolors.LogNorm(vmin=1e-17, vmax=1e-9, clip=True)
-        print(gam_intens_sl.min(), gam_intens_sl.max())
-        norm = mcolors.LogNorm()
-        extent = ([low_cor[0], up_cor[0], low_cor[1], up_cor[1]] * u.cm).to_value(u.pc)
+            gam_sl_gr = sim_gr.create_group("slices")
+            
+            gam_sl_gr.create_dataset(f"t{isim}0kyr", data=gam_intens_sl)
+            gam_sl_gr.create_dataset("bbox", data=bbox)
 
-        im = ax.imshow(gam_intens_sl.T, norm=norm, cmap=cm.GnBu, origin="lower", extent=extent)
-        ax.scatter(0, 0, s=5.0, color="k")  # star
-    
-        # labels
-        ax.set_xlabel("$x$ / pc", fontsize=20)
-        ax.set_ylabel("$y$ / pc", fontsize=20)
-        # ticks
-        ax.tick_params(axis='both', direction="in", which='major', size=8, labelsize=18)
-        ax.tick_params(axis='both', direction="in", which='minor', size=6, labelsize=16)
+        del gam_intens_sl
 
-        # colorbar
-        # make separate axes for each image
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes("right", size="5%", pad=0.1)
-        cb = fig.colorbar(im, ax=ax, cax=cax)
-        cb.ax.set_ylabel(r"$j_\gamma$ / erg s$^{-1}$ cm$^{-3}$", fontsize=20)
-        cb.ax.tick_params(axis='both', which='major', size=8, labelsize=18)
-        cb.ax.tick_params(axis='both', which='minor', size=6, labelsize=18)
-
-        # save
-        fig.savefig(f"{fig_dir}/gamma/{sim_name}/gamma_intens_sl_t{times[isim].to(u.kyr):.1f}.png", bbox_inches="tight", dpi=300)
-
-        plt.close(fig)
 
     # # compute gamma ray luminosity
     cell_size_data = np.tile(bsize[:,1] / 8.0, reps=(8,8,8)).reshape((bsize.shape[0], 8,8,8)) * u.cm
@@ -123,10 +102,7 @@ print(gam_lum_arr.min(), gam_lum_arr.max())
 
 # write data to h5py file
 with h5py.File(f"{data_dir}/emission_data_gamma.h5", "a") as pf:
-    if sim_name not in pf.keys():
-        sim_gr = pf.create_group(sim_name)
-    else:
-        sim_gr = pf[sim_name]
+    sim_gr = pf.create_group(sim_name) if sim_name not in pf.keys() else pf[sim_name]
 
     if "times" in pf[sim_name].keys():
         del pf[sim_name]["times"]

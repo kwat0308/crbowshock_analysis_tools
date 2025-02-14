@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import h5py
+import astropy.units as u
 
 from transform_data import get_transformed_data
 from bowshock_config import bowshock_config
@@ -32,16 +33,19 @@ def get_polar_grid(shape : tuple, bbox, derivs=False):
 
     return R, TH, dR, dTH
 
-def get_shock_mask(pf : h5py.File, blist, shock="outer", dens_thresh=1e-27):
-    '''Get shock mask (outer or termination shock) based on density criterion'''
+def get_shock_mask(pf : h5py.File, blist, shock="outer", dens_thresh=1e-27, pres_thresh=2e3 * (u.K / u.cm**3)):
+    '''Get shock mask (outer or termination shock) based on density criterion.
+    
+    Additional pressure criterion due to artefacts that are somehow produced in the B=Bx run.'''
 
     dens_data = pf["dens"][()][blist]
     shck_data = get_transformed_data(pf, "shck", blist)
+    pres_data = get_transformed_data(pf, "pres", blist)
 
     if shock == "outer":
-        return (shck_data > 0) & (dens_data > dens_thresh)
+        return (shck_data > 0) & (dens_data > dens_thresh) & (pres_data > pres_thresh)
     elif shock == "term":
-        return (shck_data > 0) & (dens_data < dens_thresh)
+        return (shck_data > 0) & (dens_data < dens_thresh) & (pres_data > pres_thresh)
     else:
         raise Exception("shock type can only be 'outer' or 'term'.")
     
