@@ -44,6 +44,14 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--alpha_inj_e",
+    "-ae",
+    action="store",
+    default=4.4,
+    help="injection spectral index for electrons",
+)
+
+parser.add_argument(
     "--sim_name",
     "-S",
     action="store",
@@ -60,14 +68,14 @@ print(f"Performing calculation for {sim_name}")
 
 
 with h5py.File(f"{data_dir}/steady_state_spectrum.h5", "r") as f:
-    log10_R0_grid = f["log10_R0_grid"][()]
-    log10_vel_grid = f["log10_vel_grid"][()]
-    log10_kappa10_grid = f["log10_kappa10_grid"][()]
-    log10_dens_grid = f["log10_dens_grid"][()]
     alpha_inj_grid = f["alpha_inj_grid"][()]
-    log10_Blos_grid = f["synch_emission/log10_Blos_grid"][()]
-    synch_freq_grid = f["synch_emission/synch_freq_grid"][()] * u.GHz
-    log10_ensynch_grid_full = f["synch_emission/log10_ensynch_grid"][()]
+    alpha_inj_e_grid = f["alpha_inj_e_grid"][()]
+    log10_B_grid = f["log10_B_grid"][()]
+    synch_freq_grid = f["syn_freq_grid"][()] * u.GHz
+
+    rho0 = f["proton/rho0"][()]
+
+    log10_ensynchratio_grid = f["electron/log10_ensynchratio_grid"][()]
 
 
 if not os.path.exists(f"{fig_dir}/synch"):
@@ -77,48 +85,25 @@ if not os.path.exists(f"{fig_dir}/synch/{sim_name}"):
     os.mkdir(f"{fig_dir}/synch/{sim_name}")
 
 
+# get list of all files
 sim_dir = bowshock_config[sim_name]["sim_dir"]
-mstar = bowshock_config[sim_name]["mstar"] * u.Msun
-vstar = bowshock_config[sim_name]["vstar"] * (u.km / u.s)
-env_name = bowshock_config[sim_name]["env_name"]
-kappa_10 = bowshock_config[sim_name]["kappa_10"] * (u.cm**2 / u.s)
+sim_files = []
+for file in os.listdir(f"{flash_output_dir}/{sim_dir}"):
+    if file.find("plt") < 0 or file.find("forced") > 0 or file.find("0000") > 0:
+        continue
+    sim_files.append(file)
 
-# stannd-off radius
-with h5py.File(f"{data_dir}/standoff_radius.h5", "r") as f:
-    mstar_grid = f["mstar_grid"][()] * u.M_sun
-    vstar_grid = f["vstar_grid"][()] * (u.km / u.s)
+# sort
+sim_files = sorted(sim_files)
 
-    R0_grid = f[env_name]["R0_grid"][()] * u.cm
-
-mstar_idx = np.digitize(mstar, mstar_grid, right=True)
-vstar_idx = np.digitize(vstar, vstar_grid, right=True)
-
-R0 = R0_grid[mstar_idx, vstar_idx].to(u.pc)
-print(f"Stand-off radius: {R0.to(u.pc):.3f}")
-
-# evaluate for kappa and R0, which are static per simulation
-log10_ensynch_grid = log10_ensynch_grid_full[
-    # np.digitize(4.0, alpha_inj_grid, right=True),
-    :,
-    np.digitize(np.log10(kappa_10.value), log10_kappa10_grid, right=True),
-    np.digitize(np.log10(R0.value), log10_R0_grid, right=True),
-    :,
-    :,
-    :,
-    :,
-]
-
-# # first interpolate the enratio grid
-# f_log10_ensynchratio = RegularGridInterpolator(
-#     (alpha_inj_grid, log10_vel_grid, log10_dens_grid, log10_Blos_grid),
-#     log10_ensynch_grid,
-# )
+alpha_inj_e_idx = np.digitize(args.alpha_inj_e, alpha_inj_e_grid, right=True)
+log10_ensynchratio_grid = log10_ensynchratio_grid[:, alpha_inj_e_idx, :, :]
 
 # first interpolate the enratio grid
 f_log10_ensynchratio = RegularGridInterpolator(
-    (alpha_inj_grid, log10_vel_grid, log10_dens_grid, log10_Blos_grid),
-    log10_ensynch_grid,
-    method="nearest",
+    (alpha_inj_grid, log10_B_grid),
+    log10_ensynchratio_grid,
+    method="linear",
     fill_value=None,
     bounds_error=False,
 )
@@ -177,22 +162,27 @@ for arg in args_list:
         * u.cm
     )
 
-    for ifreq, synch_freq in enumerate(tqdm(synch_freq_grid)):
+    for ifreq, synch_freq in tqdm(enumerate(synch_freq_grid), total=len(synch_freq_grid)):
         # encr to nele_synch ratio
-        ensynchratio_data = ((
-            10.0
-            ** f_log10_ensynchratio(
-                (
-                    get_transformed_data(pf, "alpha_inj", blist),
-                    # 4.0,
-                    np.log10(get_transformed_data(pf, "vel", blist)),
-                    np.log10(pf["dens"][()][blist]),
-                    np.log10(Blos_data),
-                )
-            )[..., ifreq]
-        ) * u.GeV).to_value(u.erg)  # need to convert this to erg
+        ensynchratio_data = (
+            (
+                10.0
+                ** f_log10_ensynchratio(
+                    (
+                        # get_transformed_data(pf, "alpha_inj", blist),
+                        4,
+                        np.log10(Blos_data),
+                    )
+                )[..., ifreq]
+            )
+            * u.GeV
+        ).to_value(u.erg)  # need to convert this to erg
 
-        print(np.min(ensynchratio_data), np.max(ensynchratio_data))
+        # multiply by density scaling factor (dimensionless since both in cgs)
+        # needed since only numerator had dependence on density, which we didnt take into account
+        ensynchratio_data /= (pf["dens"][()][blist] / rho0)
+
+        # print(np.min(ensynchratio_data), np.max(ensynchratio_data))
 
         # specific synchrotron intensity is in -> E dN/(dV dt), in units of erg / s / Hz / cm^3
         # NB: astropy doesnt properly take care of cgs units with magnetic fields, so we convert them to values instead and add units later
@@ -210,7 +200,7 @@ for arg in args_list:
             * pf["dens"][()][blist]  # density
         ) / ensynchratio_data
 
-        if isim % 5 == 0: 
+        if isim % 5 == 0:
             synch_idx = np.digitize(1.4 * u.GHz, synch_freq_grid, right=True)
             if ifreq != synch_idx:
                 continue
@@ -226,13 +216,17 @@ for arg in args_list:
             )
             # write data to h5py file
             with h5py.File(f"{data_dir}/emission_data_synch.h5", "a") as pfo:
-                sim_gr = pfo.create_group(sim_name) if sim_name not in pfo.keys() else pfo[sim_name]
-                
+                sim_gr = (
+                    pfo.create_group(sim_name)
+                    if sim_name not in pfo.keys()
+                    else pfo[sim_name]
+                )
+
                 if "slices" in sim_gr.keys():
                     del pfo[sim_name]["slices"]
 
                 synch_sl_dr = sim_gr.create_group("slices")
-                
+
                 synch_sl_dr.create_dataset(f"t{isim}0kyr", data=synch_intens_sl)
                 synch_sl_dr.create_dataset("bbox", data=bbox)
 
@@ -263,6 +257,10 @@ for arg in args_list:
 
 print(synch_lum_arr.min(), synch_lum_arr.max())
 
+# sort arrays based on increasing orde rin time
+synch_lum_arr = synch_lum_arr[np.argsort(times)]
+times = np.sort(times)
+
 # write data to h5py file
 with h5py.File(f"{data_dir}/emission_data_synch.h5", "a") as pf:
     sim_gr = pf.create_group(sim_name) if sim_name not in pf.keys() else pf[sim_name]
@@ -274,7 +272,7 @@ with h5py.File(f"{data_dir}/emission_data_synch.h5", "a") as pf:
     if "synch_lum" in pf[sim_name].keys():
         del pf[sim_name]["synch_lum"]
     sim_gr.create_dataset("synch_lum", data=synch_lum_arr.to(u.erg / u.s / u.Hz))
-    
+
     if "synch_freq" in pf[sim_name].keys():
         del pf[sim_name]["synch_freq"]
     sim_gr.create_dataset("synch_freq", data=synch_freq_grid.to_value(u.GHz))

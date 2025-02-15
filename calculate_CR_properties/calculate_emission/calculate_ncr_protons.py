@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import astropy.units as u
 import h5py
 import os
-from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import CubicSpline
 
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
@@ -39,45 +39,12 @@ args = parser.parse_args()
 
 sim_name = args.sim_name
 sim_dir = bowshock_config[args.sim_name]["sim_dir"]
-mstar = bowshock_config[args.sim_name]["mstar"] * u.Msun
-vstar = bowshock_config[args.sim_name]["vstar"] * (u.km / u.s)
-env_name = bowshock_config[args.sim_name]["env_name"]
-kappa_10 = bowshock_config[args.sim_name]["kappa_10"] * (u.cm**2 / u.s)
 
-# read in stand-off radiuss
-with h5py.File(f"{data_dir}/standoff_radius.h5", "r") as f:
-    mstar_grid = f["mstar_grid"][()] * u.Msun
-    vstar_grid = f["vstar_grid"][()] * u.km / u.s
-
-    R0_grid = f[env_name]["R0_grid"][()] * u.cm
-
-mstar_idx = np.digitize(mstar, mstar_grid, right=True)
-vstar_idx = np.digitize(vstar, vstar_grid, right=True)
-
-R0 = R0_grid[mstar_idx, vstar_idx].to(u.pc)
-print(f"Stand-off radius: {R0.to(u.pc):.3f}")
-
-# read in steady state spectrum
 with h5py.File(f"{data_dir}/steady_state_spectrum.h5", "r") as f:
-    log10_R0_grid = f["log10_R0_grid"][()]
-    log10_vel_grid = f["log10_vel_grid"][()]
-    log10_kappa10_grid = f["log10_kappa10_grid"][()]
-    log10_dens_grid = f["log10_dens_grid"][()]
     alpha_inj_grid = f["alpha_inj_grid"][()]
-    log10_enratio_grid_full = f["prot/log10_enratio_grid"][()]
+    log10_enratio_grid = f["proton/log10_enpratio_grid"][()]
 
-log10_enratio_grid = log10_enratio_grid_full[
-    :,
-    np.digitize(np.log10(kappa_10.value), log10_kappa10_grid, right=True),
-    np.digitize(np.log10(R0.value), log10_R0_grid, right=True),
-    :,
-    :,
-]
-
-# first interpolate the enratio grid
-f_log10enratio = RegularGridInterpolator(
-    (alpha_inj_grid, log10_vel_grid, log10_dens_grid), log10_enratio_grid
-)
+f_log10_enratio_grid = CubicSpline(x=alpha_inj_grid, y=log10_enratio_grid)
 
 
 if not os.path.exists(f"{fig_dir}/{sim_name}"):
@@ -98,12 +65,13 @@ sim_files = sorted(sim_files)[::-1]
 if len(sim_files) > 200:
     sim_files = sim_files[::10]
 
+# store total number of CRs per time
+ncr_tot_arr = np.zeros(len(sim_files))
+times = np.zeros(len(sim_files)) * u.s
+
 # loop over each file and get the slice
 for isim, sim_file in enumerate(sim_files):
-    if isim % 5 != 0:
-        continue
-    # if isim > 0:
-    #     continue
+
     blist, brefs, bns = flash_amr_tools.get_true_blocks(
         f"{flash_output_dir}/{sim_dir}/{sim_file}"
     )
@@ -111,12 +79,13 @@ for isim, sim_file in enumerate(sim_files):
     with h5py.File(f"{flash_output_dir}/{sim_dir}/{sim_file}", "r") as pf:
         shma_data = pf["shma"][()][blist]
         dens_data = pf["dens"][()][blist] * (u.g / u.cm**3)
-        vel_data = [pf["velx"][()][blist], pf["vely"][()][blist], pf["velz"][()][blist]]
         encr_data = pf["encr"][()][blist] * (u.erg / u.g)
         ref_lvl = pf["refine level"][()][blist]
         bbox = pf["bounding box"][()][blist]
         bsize = pf["block size"][()][blist]
         gam = pf["geff"][()][blist]
+
+        times[isim] = pf["real scalars"][()][0][1] * u.s  # time in seconds (this is fine)
 
     low_cor, up_cor = bbox[0, :, 0], bbox[-1, :, 1]
 
@@ -129,45 +98,66 @@ for isim, sim_file in enumerate(sim_files):
     alpha_inj_data[alpha_inj_data < 4] = 4  # soft spectral index for background CRs
     alpha_inj_data[alpha_inj_data >= 10] = 10  # similarly
 
-    # computing velocity magnitude3
-    vel_mag_data = np.sqrt(vel_data[0] ** 2 + vel_data[1] ** 2 + vel_data[2] ** 2) * (
-        u.cm / u.s
-    )
-
     # compute the enratio to get CR number density
-    enratio_data = (
-        10.0
-        ** f_log10enratio(
-            (
-                alpha_inj_data,
-                np.log10(vel_mag_data.to_value(u.km / u.s)),
-                np.log10(dens_data.to_value(u.g / u.cm**3)),
-            )
-        )
-        * u.GeV
-    )
+    enratio_data = (10.0 ** f_log10_enratio_grid(alpha_inj_data))* u.GeV
+
     ncr_data = (encr_data * dens_data / enratio_data).to(u.cm**-3)
 
-    ncr_sl = flash_amr_tools.get_slice(
-        ncr_data,
-        pos=args.pos,
-        axis=args.axis,
-        ref_lvl=ref_lvl,
-        bbox=bbox,
-        bsize=bsize,
-        brefs=brefs,
-        bns=bns,
+    # # compute total number of CR electrons
+    # now we need to add astropy units since we would once convert to pc
+    # as cm^3 with 1e21 overloads
+    cell_size_data = (
+        np.tile(bsize[:, 0] / 8.0, reps=(8, 8, 8)).reshape((bsize.shape[0], 8, 8, 8))
+        * u.cm
     )
-    print(ncr_sl.min(), ncr_sl.max())
+    ncr_tot_arr[isim] = np.sum( ncr_data.to(u.pc**-3) * cell_size_data.to(u.pc) ** 3)
 
-    # write data to h5py file
-    with h5py.File(f"{data_dir}/emission_data_ncr.h5", "a") as pf:
-        sim_gr = (
-            pf.create_group(sim_name) if sim_name not in pf.keys() else pf[sim_name]
+    if isim % 5 != 0:
+        ncre_sl = flash_amr_tools.get_slice(
+            ncr_data,
+            pos=args.pos,
+            axis=args.axis,
+            ref_lvl=ref_lvl,
+            bbox=bbox,
+            bsize=bsize,
+            brefs=brefs,
+            bns=bns,
         )
+        print(ncre_sl.min(), ncre_sl.max())
 
-        if "slices" in sim_gr.keys():
-            del sim_gr["slices"]
-        ncr_sl_dr = sim_gr.create_group("slices")
-        ncr_sl_dr.create_dataset(f"t{isim}0kyr", data=ncr_sl)
-        ncr_sl_dr.create_dataset("bbox", data=bbox)
+        # write data to h5py file
+        with h5py.File(f"{data_dir}/emission_data_ncr.h5", "a") as pf:
+            sim_gr = (
+                pf.create_group(sim_name) if sim_name not in pf.keys() else pf[sim_name]
+            )
+
+            if "electron" in sim_gr.keys():
+                del sim_gr["electron"]
+
+            sim_ele_gr = sim_gr.create_group("electron")
+
+            if "slices" in sim_ele_gr.keys():
+                del sim_ele_gr["slices"]
+            ncr_sl_dr = sim_ele_gr.create_group("slices")
+            ncr_sl_dr.create_dataset(f"t{isim}0kyr", data=ncre_sl)
+            ncr_sl_dr.create_dataset("bbox", data=bbox)
+
+
+# sort arrays based on increasing orde rin time
+ncr_tot_arr = ncr_tot_arr[np.argsort(times)]
+times = np.sort(times)
+
+# write data to h5py file
+with h5py.File(f"{data_dir}/emission_data_ncr.h5", "a") as pf:
+    sim_gr = (
+        pf.create_group(sim_name) if sim_name not in pf.keys() else pf[sim_name]
+    )
+
+    sim_ele_gr = sim_gr["proton"]
+
+    if "ncr_tot" in sim_ele_gr.keys():
+        del sim_ele_gr["ncr_tot"]
+
+    ncr_sl_dr = sim_ele_gr.create_group("ncr_tot")
+    ncr_sl_dr.create_dataset("ncre_tot", data=ncr_tot_arr)
+    ncr_sl_dr.create_dataset("times", data=times.to_value(u.kyr))

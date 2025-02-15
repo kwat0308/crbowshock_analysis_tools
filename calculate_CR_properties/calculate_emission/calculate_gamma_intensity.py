@@ -100,6 +100,10 @@ for isim, sim_file in enumerate(sim_files):
 
 print(gam_lum_arr.min(), gam_lum_arr.max())
 
+# sort arrays based on increasing orde rin time
+gam_lum_arr = gam_lum_arr[np.argsort(times)]
+times = np.sort(times)
+
 # write data to h5py file
 with h5py.File(f"{data_dir}/emission_data_gamma.h5", "a") as pf:
     sim_gr = pf.create_group(sim_name) if sim_name not in pf.keys() else pf[sim_name]
