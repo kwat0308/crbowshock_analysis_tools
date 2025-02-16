@@ -28,7 +28,7 @@ print(
     "Minimum & maximum of normalised momentum (protons): ", pp_arr.min(), pp_arr.max()
 )
 
-pe_arr = np.logspace(-1, 2, 200) * u.GeV / c  # momentum grid for electrons
+pe_arr = np.logspace(-1, 3, 200) * u.GeV / c  # momentum grid for electrons
 pe_arr = (pe_arr / (me * c)).to_value(
     u.dimensionless_unscaled
 )  # normalised momentum wrt electrons
@@ -38,6 +38,12 @@ print(
 
 rho0 = 1e-25 * u.g / u.cm**3  # normalisation constant for density scaling
 print(f"Scaling density with the following value: {rho0:.2e}")
+
+# parameters for taking care of normalisation of p-> e spectrum
+Kep = 0.01  # Cummings et al 2016
+pp0 = ((10 * u.GeV) / (mp * c**2)).to_value(u.dimensionless_unscaled)
+pe0 = ((10 * u.GeV) / (me * c**2)).to_value(u.dimensionless_unscaled)
+print(f"ep ratio parameters: {Kep:.2f}, {pp0:.3f}, {pe0:.3f}")
 
 
 def ekin(p):
@@ -143,16 +149,10 @@ def crit_freq(Blos, pele):
     # NB: here we take normalised momentum (normalised over mass)
     return 0.5 * (Blos / (1 * u.uG)) * (np.sqrt(1 + pele**2) / 1e4) ** 2 * u.GHz
 
-
-# parameters for taking care of normalisation of p-> e spectrum
-Kep = 0.01  # Cummings et al 2016
-pp0 = ((10 * u.GeV) / (mp * c**2)).value
-pe0 = ((10 * u.GeV) / (me * c**2)).value
-
 # now calculate enratio for grid of alpha_inj_e, magnetic field
 # also for synchrotron frequencies
 alpha_inj_e_grid = np.linspace(4, 10, 30)
-magnetic_field_grid = np.logspace(-8, -3, 25) * u.G
+magnetic_field_grid = np.logspace(-9, -3, 30) * u.G
 synch_freq_grid = np.linspace(1.4, 12.4, 12) * u.GHz  # synchrotron frequency
 
 fe0_grid = np.zeros(
