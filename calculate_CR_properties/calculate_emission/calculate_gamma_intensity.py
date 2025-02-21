@@ -83,13 +83,11 @@ for isim, sim_file in enumerate(sim_files):
         # write data to h5py file
         with h5py.File(f"{data_dir}/emission_data_gamma.h5", "a") as pf:
             sim_gr = pf.create_group(sim_name) if sim_name not in pf.keys() else pf[sim_name]
-            if "slices" in sim_gr.keys():
-                del sim_gr["slices"]
 
-            gam_sl_gr = sim_gr.create_group("slices")
+            gam_sl_gr = sim_gr["slices"] if "slices" in sim_gr.keys() else sim_gr.create_group("slices")
             
             gam_sl_gr.create_dataset(f"t{isim}0kyr", data=gam_intens_sl)
-            gam_sl_gr.create_dataset("bbox", data=bbox)
+            gam_sl_gr.create_dataset(f"t{isim}0_bbox", data=bbox)
 
         del gam_intens_sl
 

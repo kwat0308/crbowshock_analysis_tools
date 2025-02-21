@@ -6,7 +6,7 @@ import h5py
 import os, psutil
 import json
 from tqdm import tqdm
-from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import RegularGridInterpolator, CubicSpline
 from joblib import Parallel, delayed
 
 import matplotlib.colors as mcolors
@@ -52,6 +52,14 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--alpha_inj",
+    "-ap",
+    action="store",
+    default=4.,
+    help="injection spectral index for proton",
+)
+
+parser.add_argument(
     "--sim_name",
     "-S",
     action="store",
@@ -69,11 +77,12 @@ print(f"Performing calculation for {sim_name}")
 
 with h5py.File(f"{data_dir}/steady_state_spectrum.h5", "r") as f:
     alpha_inj_grid = f["alpha_inj_grid"][()]
+    log10_dens_grid = f["log10_dens_grid"][()]
     alpha_inj_e_grid = f["alpha_inj_e_grid"][()]
     log10_B_grid = f["log10_B_grid"][()]
     synch_freq_grid = f["syn_freq_grid"][()] * u.GHz
 
-    rho0 = f["proton/rho0"][()]
+    # rho0 = f["proton/rho0"][()]
 
     log10_ensynchratio_grid = f["electron/log10_ensynchratio_grid"][()]
 
@@ -97,16 +106,20 @@ for file in os.listdir(f"{flash_output_dir}/{sim_dir}"):
 sim_files = sorted(sim_files)
 
 alpha_inj_e_idx = np.digitize(args.alpha_inj_e, alpha_inj_e_grid, right=True)
-log10_ensynchratio_grid = log10_ensynchratio_grid[:, alpha_inj_e_idx, :, :]
+alpha_inj_idx = np.digitize(args.alpha_inj, alpha_inj_grid, right=True)
+log10_ensynchratio_grid = log10_ensynchratio_grid[alpha_inj_idx, :, alpha_inj_e_idx, :, :]
 
 # first interpolate the enratio grid
 f_log10_ensynchratio = RegularGridInterpolator(
-    (alpha_inj_grid, log10_B_grid),
+    (log10_dens_grid, log10_B_grid),
     log10_ensynchratio_grid,
     method="linear",
     fill_value=None,
     bounds_error=False,
 )
+# f_log10_ensynchratio = CubicSpline(x=log10_B_grid,
+#     y=log10_ensynchratio_grid,
+# )
 
 # get list of all files
 sim_files = []
@@ -168,11 +181,8 @@ for arg in args_list:
             (
                 10.0
                 ** f_log10_ensynchratio(
-                    (
-                        # get_transformed_data(pf, "alpha_inj", blist),
-                        4,
-                        np.log10(Blos_data),
-                    )
+                    (np.log(pf["dens"][()][blist]),
+                        np.log10(Blos_data)),
                 )[..., ifreq]
             )
             * u.GeV
@@ -180,7 +190,7 @@ for arg in args_list:
 
         # multiply by density scaling factor (dimensionless since both in cgs)
         # needed since only numerator had dependence on density, which we didnt take into account
-        ensynchratio_data /= (pf["dens"][()][blist] / rho0)
+        # ensynchratio_data /= (pf["dens"][()][blist] / rho0)
 
         # print(np.min(ensynchratio_data), np.max(ensynchratio_data))
 
@@ -222,13 +232,11 @@ for arg in args_list:
                     else pfo[sim_name]
                 )
 
-                if "slices" in sim_gr.keys():
-                    del pfo[sim_name]["slices"]
+                synch_sl_dr = sim_gr["slices"] if "slices" in sim_gr.keys() else sim_gr.create_group("slices")
 
-                synch_sl_dr = sim_gr.create_group("slices")
 
                 synch_sl_dr.create_dataset(f"t{isim}0kyr", data=synch_intens_sl)
-                synch_sl_dr.create_dataset("bbox", data=bbox)
+                synch_sl_dr.create_dataset(f"t{isim}_bbox", data=bbox)
 
             del synch_intens_sl
 

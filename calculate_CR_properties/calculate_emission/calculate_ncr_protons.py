@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import astropy.units as u
 import h5py
 import os
-from scipy.interpolate import CubicSpline
+from scipy.interpolate import RegularGridInterpolator
 
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
@@ -42,9 +42,12 @@ sim_dir = bowshock_config[args.sim_name]["sim_dir"]
 
 with h5py.File(f"{data_dir}/steady_state_spectrum.h5", "r") as f:
     alpha_inj_grid = f["alpha_inj_grid"][()]
+    log10_dens_grid = f["log10_dens_grid"][()]
     log10_enratio_grid = f["proton/log10_enpratio_grid"][()]
 
-f_log10_enratio_grid = CubicSpline(x=alpha_inj_grid, y=log10_enratio_grid)
+f_log10_enratio_grid = RegularGridInterpolator((alpha_inj_grid, log10_dens_grid), log10_enratio_grid, method="linear",
+    fill_value=None,
+    bounds_error=False,)
 
 
 if not os.path.exists(f"{fig_dir}/{sim_name}"):
@@ -66,7 +69,7 @@ if len(sim_files) > 200:
     sim_files = sim_files[::10]
 
 # store total number of CRs per time
-ncr_tot_arr = np.zeros(len(sim_files))
+ncr_mean_arr = np.zeros(len(sim_files)) * u.cm**-3
 times = np.zeros(len(sim_files)) * u.s
 
 # loop over each file and get the slice
@@ -92,27 +95,24 @@ for isim, sim_file in enumerate(sim_files):
     # calculate injection index
     # gam = 5/3
 
-    xs_data = (gam + 1) * shma_data**2 / (2 + (gam - 1) * shma_data**2)
-    alpha_inj_data = 3 * xs_data / (xs_data - 1)
-    # force minimal and maximal values
-    alpha_inj_data[alpha_inj_data < 4] = 4  # soft spectral index for background CRs
-    alpha_inj_data[alpha_inj_data >= 10] = 10  # similarly
+    # xs_data = (gam + 1) * shma_data**2 / (2 + (gam - 1) * shma_data**2)
+    # alpha_inj_data = 3 * xs_data / (xs_data - 1)
+    # # force minimal and maximal values
+    # alpha_inj_data[alpha_inj_data < 4] = 4  # soft spectral index for background CRs
+    # alpha_inj_data[alpha_inj_data >= 10] = 10  # similarly
+
+    # we fix the injection index for CR calcualtion as the index is not retained at each step
+    # as such its more physical to assume otherwise
+    alpha_inj_data = 4.
 
     # compute the enratio to get CR number density
-    enratio_data = (10.0 ** f_log10_enratio_grid(alpha_inj_data))* u.GeV
+    enratio_data = (10.0 ** f_log10_enratio_grid((alpha_inj_data, np.log10(dens_data.value)))) * u.GeV
 
     ncr_data = (encr_data * dens_data / enratio_data).to(u.cm**-3)
 
-    # # compute total number of CR electrons
-    # now we need to add astropy units since we would once convert to pc
-    # as cm^3 with 1e21 overloads
-    cell_size_data = (
-        np.tile(bsize[:, 0] / 8.0, reps=(8, 8, 8)).reshape((bsize.shape[0], 8, 8, 8))
-        * u.cm
-    )
-    ncr_tot_arr[isim] = np.sum( ncr_data.to(u.pc**-3) * cell_size_data.to(u.pc) ** 3)
+    ncr_mean_arr[isim] = np.mean(ncr_data)
 
-    if isim % 5 != 0:
+    if isim % 5 == 0 and isim > 0:
         ncre_sl = flash_amr_tools.get_slice(
             ncr_data,
             pos=args.pos,
@@ -131,20 +131,15 @@ for isim, sim_file in enumerate(sim_files):
                 pf.create_group(sim_name) if sim_name not in pf.keys() else pf[sim_name]
             )
 
-            if "electron" in sim_gr.keys():
-                del sim_gr["electron"]
+            sim_prot_gr = sim_gr["proton"] if "proton" in sim_gr.keys() else sim_gr.create_group("proton")
+            ncr_sl_dr = sim_gr["proton"]["slices"] if "slices" in sim_prot_gr.keys() else sim_prot_gr.create_group("slices")
 
-            sim_ele_gr = sim_gr.create_group("electron")
-
-            if "slices" in sim_ele_gr.keys():
-                del sim_ele_gr["slices"]
-            ncr_sl_dr = sim_ele_gr.create_group("slices")
             ncr_sl_dr.create_dataset(f"t{isim}0kyr", data=ncre_sl)
-            ncr_sl_dr.create_dataset("bbox", data=bbox)
+            ncr_sl_dr.create_dataset(f"t{isim}0kyr_bbox", data=bbox)
 
 
 # sort arrays based on increasing orde rin time
-ncr_tot_arr = ncr_tot_arr[np.argsort(times)]
+ncr_mean_arr = ncr_mean_arr[np.argsort(times)]
 times = np.sort(times)
 
 # write data to h5py file
@@ -153,11 +148,11 @@ with h5py.File(f"{data_dir}/emission_data_ncr.h5", "a") as pf:
         pf.create_group(sim_name) if sim_name not in pf.keys() else pf[sim_name]
     )
 
-    sim_ele_gr = sim_gr["proton"]
+    sim_prot_gr = sim_gr["proton"]
+    sim_prot_gr.create_dataset("times", data=times.to_value(u.kyr))
 
-    if "ncr_tot" in sim_ele_gr.keys():
-        del sim_ele_gr["ncr_tot"]
+    if "ncr_tot" in sim_prot_gr.keys():
+        del sim_prot_gr["ncr_tot"]
 
-    ncr_sl_dr = sim_ele_gr.create_group("ncr_tot")
-    ncr_sl_dr.create_dataset("ncre_tot", data=ncr_tot_arr)
-    ncr_sl_dr.create_dataset("times", data=times.to_value(u.kyr))
+    sim_prot_gr.create_dataset("ncr_mean", data=ncr_mean_arr)
+    
