@@ -45,6 +45,11 @@ def get_transformed_data(pf : h5py.File, field : str, blist):
 
     elif field == "encr":
         field_data = pf["encr"][()][blist] * pf["dens"][()][blist]
+    elif field == "einj":
+        if "einj" in list(pf.keys()):
+            field_data = pf["einj"][()][blist] * pf["dens"][()][blist]
+        else:
+            pass # einj not available in this simulation, so we pass
     elif field == "alpha_inj":
         shma_data = pf["shma"][()][blist]
         geff_data = pf["geff"][()][blist]

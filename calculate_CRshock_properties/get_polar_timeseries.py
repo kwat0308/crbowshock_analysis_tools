@@ -123,7 +123,7 @@ for s, shock in enumerate(["outer", "term"]):
         field_polar_vals[ifld, it, :] = field_vals
 
     # store the data
-    with h5py.File(f"{data_dir}/polar_time_series_{shock}_1.h5", "a") as pf:
+    with h5py.File(f"{data_dir}/polar_time_series_{shock}.h5", "a") as pf:
         if args.sim_name in list(pf.keys()):
             sim_gr = pf[args.sim_name]
             del pf[args.sim_name]["times"]
@@ -141,5 +141,5 @@ for s, shock in enumerate(["outer", "term"]):
             
             sim_gr.create_dataset(field, data=field_polar_vals[ifld,...])
 
-    with h5py.File(f"{data_dir}/polar_time_series_{shock}_1.h5", "a") as pf:
+    with h5py.File(f"{data_dir}/polar_time_series_{shock}.h5", "a") as pf:
         print(pf[args.sim_name].keys())

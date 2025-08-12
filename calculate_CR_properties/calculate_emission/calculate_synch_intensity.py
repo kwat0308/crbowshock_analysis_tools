@@ -47,7 +47,7 @@ parser.add_argument(
     "--alpha_inj_e",
     "-ae",
     action="store",
-    default=4.4,
+    default=4.2,
     help="injection spectral index for electrons",
 )
 
@@ -55,7 +55,7 @@ parser.add_argument(
     "--alpha_inj",
     "-ap",
     action="store",
-    default=4.,
+    default=4.2,
     help="injection spectral index for proton",
 )
 
@@ -69,6 +69,8 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
+
+times_to_store = [30, 60, 90, 120, 150]  # in kyr
 
 sim_name = args.sim_name
 
@@ -210,35 +212,36 @@ for arg in args_list:
             * pf["dens"][()][blist]  # density
         ) / ensynchratio_data
 
-        if isim % 5 == 0:
-            synch_idx = np.digitize(1.4 * u.GHz, synch_freq_grid, right=True)
-            if ifreq != synch_idx:
-                continue
-            synch_intens_sl = flash_amr_tools.get_slice(
-                synch_intens_data * synch_freq.to_value(u.Hz),
-                pos=0.0,
-                axis=2,
-                ref_lvl=ref_lvl,
-                bbox=bbox,
-                bsize=bsize,
-                brefs=brefs,
-                bns=bns,
-            )
-            # write data to h5py file
-            with h5py.File(f"{data_dir}/emission_data_synch.h5", "a") as pfo:
-                sim_gr = (
-                    pfo.create_group(sim_name)
-                    if sim_name not in pfo.keys()
-                    else pfo[sim_name]
+        for t in times_to_store:
+            if np.isclose(t, time.to_value(u.kyr), atol=0.1):   # in 30 kyr intervals
+                synch_idx = np.digitize(1.4 * u.GHz, synch_freq_grid, right=True)
+                if ifreq != synch_idx:
+                    continue
+                synch_intens_sl = flash_amr_tools.get_slice(
+                    synch_intens_data * synch_freq.to_value(u.Hz),
+                    pos=0.0,
+                    axis=2,
+                    ref_lvl=ref_lvl,
+                    bbox=bbox,
+                    bsize=bsize,
+                    brefs=brefs,
+                    bns=bns,
                 )
+                # write data to h5py file
+                with h5py.File(f"{data_dir}/emission_data_synch_timecorrected.h5", "a") as pfo:
+                    sim_gr = (
+                        pfo.create_group(sim_name)
+                        if sim_name not in pfo.keys()
+                        else pfo[sim_name]
+                    )
 
-                synch_sl_dr = sim_gr["slices"] if "slices" in sim_gr.keys() else sim_gr.create_group("slices")
+                    synch_sl_dr = sim_gr["slices"] if "slices" in sim_gr.keys() else sim_gr.create_group("slices")
 
 
-                synch_sl_dr.create_dataset(f"t{isim}0kyr", data=synch_intens_sl)
-                synch_sl_dr.create_dataset(f"t{isim}_bbox", data=bbox)
+                    synch_sl_dr.create_dataset(f"t{isim}0kyr", data=synch_intens_sl)
+                    synch_sl_dr.create_dataset(f"t{isim}_bbox", data=bbox)
 
-            del synch_intens_sl
+                del synch_intens_sl
 
         synch_lum_arr[isim, ifreq] = np.sum(
             (synch_intens_data * (u.erg / u.s / u.Hz / u.cm**3)).to(
@@ -270,7 +273,7 @@ synch_lum_arr = synch_lum_arr[np.argsort(times)]
 times = np.sort(times)
 
 # write data to h5py file
-with h5py.File(f"{data_dir}/emission_data_synch.h5", "a") as pf:
+with h5py.File(f"{data_dir}/emission_data_synch_timecorrected.h5", "a") as pf:
     sim_gr = pf.create_group(sim_name) if sim_name not in pf.keys() else pf[sim_name]
 
     if "times" in pf[sim_name].keys():

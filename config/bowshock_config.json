@@ -42,7 +42,7 @@
             "vstar":30,
             "env_name":"ISM",
             "kappa_10":"None",
-            "color":"gray",
+            "color":"dimgray",
             "label" : "ISM-v30-MHD"
         }
     },

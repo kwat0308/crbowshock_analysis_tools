@@ -13,6 +13,19 @@ from mpl_toolkits.axes_grid1  import make_axes_locatable
 import flash_amr_tools
 import argparse
 
+def find_hdf5_file_from_time(time, sim_dir):
+    """
+    Find the HDF5 file corresponding to the given time in the simulation directory.
+    """
+    for file in os.listdir(sim_dir):
+        if file.find("hdf5") != -1:
+            pf = h5py.File(os.path.join(sim_dir, file), "r")
+            time_from_file = (pf['real scalars'][0][1] * u.s).to(u.kyr)
+            if np.isclose(time, time_from_file.value, atol=0.1):
+                return os.path.join(sim_dir, file)
+            
+    return None
+
 flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/outputs_new"
 fig_dir = "/home/kwatanabe/Projects/cr-bowshocks/figures"
 data_dir = "/home/kwatanabe/Projects/cr-bowshocks/crbowshock_analysis_tools/data"
@@ -39,6 +52,8 @@ mstar = bowshock_config[sim_name]["mstar"] * u.Msun
 vstar = bowshock_config[sim_name]["vstar"] * (u.km/u.s)
 env_name = bowshock_config[sim_name]["env_name"]
 kappa_10 = bowshock_config[sim_name]["kappa_10"] * (u.cm**2 / u.s)
+
+times_to_store = [30, 60, 90, 120, 150]
 
 # get list of all files
 sim_files = []
@@ -76,20 +91,21 @@ for isim, sim_file in enumerate(sim_files):
     encr_data = (encr_data * dens_data).to(u.erg / u.pc**3)
     gam_intens_data = (1 / 3 * Bhadr_coeff * dens_data.to(u.g / u.pc**3) * encr_data).to(u.erg / u.s / u.cm**3)
 
-    if isim % 5 == 0:   # in 50 kyr intervals
+    for t in times_to_store:
+        if np.isclose(t, times[isim].to_value(u.kyr), atol=0.1):   # in 30 kyr intervals
 
-        gam_intens_sl = flash_amr_tools.get_slice(gam_intens_data, pos=0.0, axis=2, ref_lvl=ref_lvl, bbox=bbox, bsize=bsize, brefs=brefs, bns=bns)
+            gam_intens_sl = flash_amr_tools.get_slice(gam_intens_data, pos=0.0, axis=2, ref_lvl=ref_lvl, bbox=bbox, bsize=bsize, brefs=brefs, bns=bns)
 
-        # write data to h5py file
-        with h5py.File(f"{data_dir}/emission_data_gamma.h5", "a") as pf:
-            sim_gr = pf.create_group(sim_name) if sim_name not in pf.keys() else pf[sim_name]
+            # write data to h5py file
+            with h5py.File(f"{data_dir}/emission_data_gamma_timecorrected.h5", "a") as pf:
+                sim_gr = pf.create_group(sim_name) if sim_name not in pf.keys() else pf[sim_name]
 
-            gam_sl_gr = sim_gr["slices"] if "slices" in sim_gr.keys() else sim_gr.create_group("slices")
-            
-            gam_sl_gr.create_dataset(f"t{isim}0kyr", data=gam_intens_sl)
-            gam_sl_gr.create_dataset(f"t{isim}0_bbox", data=bbox)
+                gam_sl_gr = sim_gr["slices"] if "slices" in sim_gr.keys() else sim_gr.create_group("slices")
+                
+                gam_sl_gr.create_dataset(f"t{t}kyr", data=gam_intens_sl)
+                gam_sl_gr.create_dataset(f"t{t}_bbox", data=bbox)
 
-        del gam_intens_sl
+            del gam_intens_sl
 
 
     # # compute gamma ray luminosity
@@ -103,7 +119,7 @@ gam_lum_arr = gam_lum_arr[np.argsort(times)]
 times = np.sort(times)
 
 # write data to h5py file
-with h5py.File(f"{data_dir}/emission_data_gamma.h5", "a") as pf:
+with h5py.File(f"{data_dir}/emission_data_gamma_timecorrected.h5", "a") as pf:
     sim_gr = pf.create_group(sim_name) if sim_name not in pf.keys() else pf[sim_name]
 
     if "times" in pf[sim_name].keys():

@@ -103,7 +103,7 @@ for isim, sim_file in enumerate(sim_files):
 
     # we fix the injection index for CR calcualtion as the index is not retained at each step
     # as such its more physical to assume otherwise
-    alpha_inj_data = 4.
+    alpha_inj_data = 4.2
 
     # compute the enratio to get CR number density
     enratio_data = (10.0 ** f_log10_enratio_grid((alpha_inj_data, np.log10(dens_data.value)))) * u.GeV

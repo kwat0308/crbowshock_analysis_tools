@@ -41,9 +41,9 @@ field_cmaps = {
 }
 field_lims = {
     "dens" : [5e-30, 5e-23],
-    "temp" : [7e2, 3e9],
-    "pres" : [0.9, 5e5],
-    "vel" : [0.9, 3e4],
+    "temp" : [1e3, 1e9],
+    "pres" : [0.1, 1e5],
+    "vel" : [0.1, 1e5],
     "mag" : [1e-10, 1e-4],
     "ener":[1e-12, 1e-9],
     "shck":[0,3],
