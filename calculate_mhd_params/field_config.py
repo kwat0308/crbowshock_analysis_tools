@@ -10,7 +10,7 @@ shck_tick_num = [1.65, 3.85, 5.65]
 field_labels = {
     "dens" : r"$\rho$ / g cm$^{-3}$",
     "temp" : "T / K",
-    "pres" : "P / $k_B$ / K cm$^{-3}$",
+    "pres" : "(P / $k_B$) / K cm$^{-3}$",
     "vel" : r"$|\vec{v}|$ / km s$^{-1}$",
     "mag" : r"$|\vec{B}|$ / G",
     "ener":"$\epsilon_\mathrm{tot}$ / erg cm$^{-3}$",
@@ -40,11 +40,11 @@ field_cmaps = {
     "geff":cm.cividis
 }
 field_lims = {
-    "dens" : [5e-30, 5e-23],
-    "temp" : [1e3, 1e9],
-    "pres" : [0.1, 1e5],
+    "dens" : [1e-29, 1e-23],
+    "temp" : [1e4, 1e8],
+    "pres" : [1e0, 1e6],
     "vel" : [0.1, 1e5],
-    "mag" : [1e-10, 1e-4],
+    "mag" : [1e-8, 1e-4],
     "ener":[1e-12, 1e-9],
     "shck":[0,3],
     "shma" : [0.0, 35],

@@ -18,6 +18,7 @@ field_labels = {
     "mag" : r"$|\vec{B}|$ / $\mu$G",
     "vel" : r"$|\vec{v}|$ / km s$^{-1}$",
     "pres" : "P / $k_B$ / K cm$^{-3}$",
+    "einj" : "$\epsilon_\mathrm{CR, inj}$ / erg cm$^{-3}$",
 }
 field_lims = {
     "dens" : [5e-30, 5e-23],
@@ -26,14 +27,15 @@ field_lims = {
     #     "term":[0.0, 35],
     # },
     "shma":[0.8, 60],
-    "encr":[1e-15, 1e-9],
+    "encr":[1e-14, 1e-9],
     "mgob" : [-5, 85],
-    "crac": [0.0, 0.35],
+    "crac": [0.0, 1.0],
     "geff":[1.33, 1.69],
-    "alpha_inj":[3.0, 10.0],
+    "alpha_inj":[3.0, 6.0],
     "mag" : [0.8, 100],
     "vel" : [0.9, 3e4],
     "pres" : [0.9, 5e5],
+    "einj" : [1e-14, 1e-10]
 }
 field_scales = {
     "dens":"log",
@@ -46,6 +48,7 @@ field_scales = {
     "vel" : "log",
     "mag" : "linear",
     "pres":"log",
+    "einj" : "log"
 }
 field_cmaps = {
     "dens" : cm.Oranges,
@@ -62,5 +65,6 @@ field_cmaps = {
     "mgob" : cm.viridis,
     "crac":cm.Reds_r,
     "plasma_beta": cm.PiYG,
-    "geff":cm.cividis
+    "geff":cm.cividis,
+    "einj" : cm.pink
 }

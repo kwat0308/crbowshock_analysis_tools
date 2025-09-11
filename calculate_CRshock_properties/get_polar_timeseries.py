@@ -37,7 +37,7 @@ parser.add_argument(
 parser.add_argument(
     "--nprocs",
     action="store",
-    default=2,
+    default=1,
     help="Number of cores to use for parallelisation"
 )
 
@@ -49,7 +49,7 @@ flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/outputs_new"
 data_dir = "/home/kwatanabe/Projects/cr-bowshocks/crbowshock_analysis_tools/data"
 
 # initial parameters
-field_names = ["alpha_inj", "encr", "shma", "geff", "dens", "mgob", "vel", "mag"]
+field_names = ["dens", "vel", "pres", "mag"]
 theta_ranges = [(0,30), (30,60), (60,90), (90,120), (120,150),(150,180)]
 
 # load the bowshock config
@@ -122,8 +122,13 @@ for s, shock in enumerate(["outer", "term"]):
         times[it] = time
         field_polar_vals[ifld, it, :] = field_vals
 
+    # sort the times
+    sorted_indices = np.argsort(times)
+    times = times[sorted_indices]
+    field_polar_vals = field_polar_vals[:, sorted_indices, :]
+
     # store the data
-    with h5py.File(f"{data_dir}/polar_time_series_{shock}.h5", "a") as pf:
+    with h5py.File(f"{data_dir}/polar_time_series_{shock}_postshockonly.h5", "a") as pf:
         if args.sim_name in list(pf.keys()):
             sim_gr = pf[args.sim_name]
             del pf[args.sim_name]["times"]
@@ -141,5 +146,5 @@ for s, shock in enumerate(["outer", "term"]):
             
             sim_gr.create_dataset(field, data=field_polar_vals[ifld,...])
 
-    with h5py.File(f"{data_dir}/polar_time_series_{shock}.h5", "a") as pf:
+    with h5py.File(f"{data_dir}/polar_time_series_{shock}_postshockonly.h5", "a") as pf:
         print(pf[args.sim_name].keys())

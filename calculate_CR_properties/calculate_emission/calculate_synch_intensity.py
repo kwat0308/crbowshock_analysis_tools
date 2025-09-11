@@ -213,7 +213,9 @@ for arg in args_list:
         ) / ensynchratio_data
 
         for t in times_to_store:
+            print(t)
             if np.isclose(t, time.to_value(u.kyr), atol=0.1):   # in 30 kyr intervals
+                print(t, time.to_value(u.kyr))
                 synch_idx = np.digitize(1.4 * u.GHz, synch_freq_grid, right=True)
                 if ifreq != synch_idx:
                     continue
@@ -238,8 +240,8 @@ for arg in args_list:
                     synch_sl_dr = sim_gr["slices"] if "slices" in sim_gr.keys() else sim_gr.create_group("slices")
 
 
-                    synch_sl_dr.create_dataset(f"t{isim}0kyr", data=synch_intens_sl)
-                    synch_sl_dr.create_dataset(f"t{isim}_bbox", data=bbox)
+                    synch_sl_dr.create_dataset(f"t{t}kyr", data=synch_intens_sl)
+                    synch_sl_dr.create_dataset(f"t{t}_bbox", data=bbox)
 
                 del synch_intens_sl
 

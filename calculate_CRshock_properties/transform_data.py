@@ -55,11 +55,42 @@ def get_transformed_data(pf : h5py.File, field : str, blist):
         geff_data = pf["geff"][()][blist]
         xs_data = (geff_data + 1) * shma_data**2 / (2 + (geff_data - 1) * shma_data**2)
         field_data = 3 * xs_data / (xs_data - 1)
-        field_data[shma_data < 1] = np.nan
+        field_data[shma_data < 2] = np.nan
+    elif field == "crac":
+        if "crac" in list(pf.keys()):
+            field_data = pf["crac"][()][blist]
+        else:
+            shma_data = pf["shma"][()][blist]
+            mgob_data = pf["mgob"][()][blist]
+
+            craccel_shma_data = craccel_machs(shma_data)
+            craccel_mgob_data = craccel_mgob(mgob_data)
+
+            field_data = craccel_shma_data * craccel_mgob_data
+            field_data[shma_data < 2] = np.nan
+
+        pass
     else:
         field_data = pf[field][()][blist]
 
     return field_data
      
 
+def craccel_mach(mach, params =  [5.46, -9.78, 4.17, -0.334, 0.57]):
+    '''As in Kang & Jones 2007'''
+    if mach <= 2:
+        return 1.96e-3 * (mach**2 - 1)
+    else:
+        poly = params[0] * mach**-4 + params[1] * (mach - 1) * mach**-3 + \
+                params[2] * (mach - 1)**2 * mach**-2 + \
+                params[3] * (mach - 1)**3 * mach**-1 + params[4] * (mach - 1)**4
+        return np.sum(poly)
+        # return np.sum(params * np.array( [(mach - 1)**n for n in range(0,5)] ) / mach**4)
+    
+def craccel_mgob(theta_B, theta_crit=np.pi/4, delta_B=np.pi/18):
+    '''As in Pais et al 2018'''
+    return 0.5 * (np.tanh( (theta_crit - theta_B) / delta_B) + 1)
 
+
+def craccel_machs(machs, params=  [5.46, -9.78, 4.17, -0.334, 0.57]):
+    return np.vectorize(craccel_mach)(machs)

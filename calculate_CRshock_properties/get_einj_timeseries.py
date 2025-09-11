@@ -75,7 +75,7 @@ for sim_name in bowshock_config.keys():
             pf.close()
 
         # save the data
-        with h5py.File(f"{data_dir}/polar_time_series_einj_{shock_type}.h5", "a") as file:
+        with h5py.File(f"{data_dir}/polar_time_series_einj_{shock_type}_postshockonly.h5", "a") as file:
             if sim_name in list(file.keys()):
                 sim_gr = file[sim_name]
                 del file[sim_name]["times"]

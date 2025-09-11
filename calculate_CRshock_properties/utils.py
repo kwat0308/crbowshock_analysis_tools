@@ -43,9 +43,9 @@ def get_shock_mask(pf : h5py.File, blist, shock="outer", dens_thresh=1e-27, pres
     pres_data = get_transformed_data(pf, "pres", blist)
 
     if shock == "outer":
-        return (shck_data > 0) & (dens_data > dens_thresh) & (pres_data > pres_thresh)
+        return (shck_data > 1) & (dens_data > dens_thresh) & (pres_data > pres_thresh)
     elif shock == "term":
-        return (shck_data > 0) & (dens_data < dens_thresh) & (pres_data > pres_thresh)
+        return (shck_data > 1) & (dens_data < dens_thresh) & (pres_data > pres_thresh)
     else:
         raise Exception("shock type can only be 'outer' or 'term'.")
     

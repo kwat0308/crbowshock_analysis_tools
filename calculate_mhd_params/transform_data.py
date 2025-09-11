@@ -17,10 +17,15 @@ def get_transformed_data(pf : h5py.File, field : str, blist):
         field_data += pf[f"{field}y"][()][blist]**2 
         field_data += pf[f"{field}z"][()][blist]**2 
         field_data = np.sqrt(field_data) * u.cm / u.s
-        field_data = field_data.to(u.km/u.s)
-    elif field == "pres":  # convert to P/kB
+        field_data = field_data.to_value(u.km/u.s)
+    elif field == "pres":  # convert to P/kB & add CR pressure since its not initially included
         field_data = pf["pres"][()][blist] * (u.g / u.cm / u.s**2) / const.k_B.cgs
-        field_data = field_data.to("K/cm**3")
+        if "prcr" in pf.keys():
+            field_data += pf["prcr"][()][blist] * (u.g / u.cm / u.s**2) / const.k_B.cgs
+        field_data = field_data.to_value("K/cm**3")
+    elif field == "pth":  # convert to P/kB & add CR pressure since its not initially included
+        field_data = pf["pres"][()][blist] * (u.g / u.cm / u.s**2) / const.k_B.cgs
+        field_data = field_data.to_value("K/cm**3")
     elif field == "plasma_beta":
         field_data =  8 * np.pi * pf["pres"][()][blist] * (u.g / u.cm / u.s**2)
 
@@ -47,16 +52,19 @@ def get_transformed_data(pf : h5py.File, field : str, blist):
     return field_data
      
 
-def get_shock_mask(pf : h5py.File, blist, shock="outer", dens_thresh=1e-27):
-    '''Get shock mask (outer or termination shock) based on density criterion'''
+def get_shock_mask(pf : h5py.File, blist, shock="outer", dens_thresh=1e-27, pres_thresh=2e3 * (u.K / u.cm**3)):
+    '''Get shock mask (outer or termination shock) based on density criterion.
+    
+    Additional pressure criterion due to artefacts that are somehow produced in the B=Bx run.'''
 
     dens_data = pf["dens"][()][blist]
     shck_data = get_transformed_data(pf, "shck", blist)
+    pres_data = get_transformed_data(pf, "pres", blist)
 
     if shock == "outer":
-        return (shck_data > 0) & (dens_data > dens_thresh)
+        return (shck_data > 1) & (dens_data > dens_thresh) & (pres_data > pres_thresh)
     elif shock == "term":
-        return (shck_data > 0) & (dens_data < dens_thresh)
+        return (shck_data > 1) & (dens_data < dens_thresh) & (pres_data > pres_thresh)
     else:
         raise Exception("shock type can only be 'outer' or 'term'.")
 
