@@ -63,8 +63,8 @@ def get_transformed_data(pf : h5py.File, field : str, blist):
             shma_data = pf["shma"][()][blist]
             mgob_data = pf["mgob"][()][blist]
 
-            craccel_shma_data = craccel_machs(shma_data)
-            craccel_mgob_data = craccel_mgob(mgob_data)
+            craccel_shma_data = craccel_machs_withcrs(shma_data)
+            craccel_mgob_data = craccel_mgob(np.deg2rad(mgob_data))
 
             field_data = craccel_shma_data * craccel_mgob_data
             field_data[shma_data < 2] = np.nan
@@ -76,14 +76,14 @@ def get_transformed_data(pf : h5py.File, field : str, blist):
     return field_data
      
 
-def craccel_mach(mach, params =  [5.46, -9.78, 4.17, -0.334, 0.57]):
+def craccel_mach_nocrs(mach, params =  [5.46, -9.78, 4.17, -0.334, 0.57]):
     '''As in Kang & Jones 2007'''
     if mach <= 2:
         return 1.96e-3 * (mach**2 - 1)
     else:
-        poly = params[0] * mach**-4 + params[1] * (mach - 1) * mach**-3 + \
-                params[2] * (mach - 1)**2 * mach**-2 + \
-                params[3] * (mach - 1)**3 * mach**-1 + params[4] * (mach - 1)**4
+        poly = (params[0] + params[1] * (mach - 1) + \
+                params[2] * (mach - 1)**2  + \
+                params[3] * (mach - 1)**3 + params[4] * (mach - 1)**4) * mach**-4
         return np.sum(poly)
         # return np.sum(params * np.array( [(mach - 1)**n for n in range(0,5)] ) / mach**4)
     
@@ -92,5 +92,33 @@ def craccel_mgob(theta_B, theta_crit=np.pi/4, delta_B=np.pi/18):
     return 0.5 * (np.tanh( (theta_crit - theta_B) / delta_B) + 1)
 
 
-def craccel_machs(machs, params=  [5.46, -9.78, 4.17, -0.334, 0.57]):
-    return np.vectorize(craccel_mach)(machs)
+def craccel_machs_nocrs(machs, params=  [5.46, -9.78, 4.17, -0.334, 0.57]):
+    return np.vectorize(craccel_mach_nocrs)(machs)
+
+def craccel_mach_withcrs(mach, params =  [0.240, -1.56, 2.80, 0.512, 0.557]):
+    '''As in Kang & Jones 2007'''
+    if mach <= 1.5 and mach > 1e-5:
+        return 1.025 * therm_eff(mach)
+    elif mach <= 1e-5:
+        return 0.0
+    else:
+        poly = (params[0] + params[1] * (mach - 1) + \
+                params[2] * (mach - 1)**2  + \
+                params[3] * (mach - 1)**3 + params[4] * (mach - 1)**4) * mach**-4
+        return np.sum(poly)
+
+def craccel_machs_withcrs(machs, params= np.array([0.240, -1.56, 2.80, 0.512, 0.557])):
+    return np.vectorize(craccel_mach_withcrs)(machs)
+
+
+def density_jump(mach, gamma=5/3):
+    '''Density jump at a shock as a function of Mach number and adiabatic index gamma'''
+    return (gamma + 1) * mach**2 / ( (gamma - 1) * mach**2 + 2)
+
+def pressure_jump(mach, gamma=5/3):
+    '''Pressure jump at a shock as a function of Mach number and adiabatic index gamma'''
+    return 2 * gamma * mach**2 / (gamma + 1) - (gamma - 1) / (gamma + 1)
+
+def therm_eff(mach, gamma=5/3):
+    '''Thermal leakage injection efficiency as in Kang & Jones 2007'''
+    return 2 * (pressure_jump(mach, gamma) - density_jump(mach, gamma)**gamma) / (gamma * (gamma - 1) * mach**2 * density_jump(mach, gamma))
