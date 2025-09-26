@@ -76,6 +76,7 @@ def b_hadr(p, rho):
     B_hadr = (c * sigma_pp * Kp * rho / (mu * mp)).cgs  # hadronic loss coefficient
     # print(f"B_hadr = {B_hadr.cgs:.5e}")
     return B_hadr * ekin(p) * dp_dekin(p)
+    # return B_hadr
 
 
 def b_coul(p, rho):
@@ -87,6 +88,7 @@ def b_coul(p, rho):
     B_coul = (coul_coeff * n_e / c / (mp * c)).cgs
     # print(f"B_coul = {B_coul.cgs:.5e}")
     return B_coul * (1 + p**-1.9)
+    # return B_coul
 
 
 # steady state spectrum with units of 1 / s
@@ -155,6 +157,7 @@ def b_rad(p, B):
     B_rad = (4 / 3 * sigma_thom * c * (u_mag + u_phot) / (me * c**2)).cgs
     # print(f"B_rad = {B_rad.cgs:.5e}")
     return B_rad * p**2 * dp_dekin(p)
+    # return B_rad
 
 
 def f_e_0(alpha_inj_e, p_arr, B):
@@ -184,7 +187,7 @@ def crit_freq(Blos, pele):
 # also for synchrotron frequencies
 alpha_inj_e_grid = np.linspace(4, 5, 10)
 magnetic_field_grid = np.logspace(-9, -3, 30) * u.G
-synch_freq_grid = np.linspace(1.4, 12.4, 12) * u.GHz  # synchrotron frequency
+synch_freq_grid = np.linspace(0.5, 15, 30) * u.GHz  # synchrotron frequency
 
 fe0_grid = np.zeros(
     (
@@ -286,9 +289,9 @@ print(
 
 
 # assert False
-if os.path.exists(f"{data_dir}/steady_state_spectrum.h5"):
-    os.remove(f"{data_dir}/steady_state_spectrum.h5")
-with h5py.File(f"{data_dir}/steady_state_spectrum.h5", "a") as f:
+if os.path.exists(f"{data_dir}/steady_state_spectrum_enindep.h5"):
+    os.remove(f"{data_dir}/steady_state_spectrum_enindep.h5")
+with h5py.File(f"{data_dir}/steady_state_spectrum_enindep.h5", "a") as f:
     f.create_dataset("alpha_inj_grid", data=alpha_inj_grid)
     f.create_dataset("log10_dens_grid", data=np.log10(dens_grid.value))
     f.create_dataset("alpha_inj_e_grid", data=alpha_inj_e_grid)
