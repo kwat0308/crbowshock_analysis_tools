@@ -17,6 +17,9 @@ do
    esac
 done
 
+# data_dir="/home/kwatanabe/Projects/cr-bowshocks/figures/lowres_test/$SIM"
+# ani_dir="/home/kwatanabe/Projects/cr-bowshocks/figures/lowres_test/$SIM"
+
 data_dir="/home/kwatanabe/Projects/cr-bowshocks/figures/slices_bx/$SIM"
 ani_dir="/home/kwatanabe/Projects/cr-bowshocks/figures/animations_bx/$SIM"
 
@@ -31,6 +34,7 @@ do
     if [ -d "$field_dir" ]; then
         echo "Processing field: $field_dir"
         field=$(basename $field_dir)
-        ffmpeg -framerate 10 -pattern_type glob -i "$field_dir/"$field"_*.png" -f mp4 $ani_dir/"$field"_anim.mp4
+        # ffmpeg -framerate 10 -pattern_type glob -i "$field_dir/"$field"_*.png" -f mp4 $ani_dir/"$field"_anim.mp4
+        ffmpeg -y -framerate 5 -pattern_type glob -i "$field_dir/"$field"_t*.png" -f mp4 $ani_dir/"$field"_anim.mp4
     fi
 done

@@ -15,7 +15,9 @@ def get_transformed_data(pf : h5py.File, field : str, blist):
         field_data = (field_data * (u.cm/u.s)).to(u.km/u.s) if field == "vel" else field_data * u.G
     elif field == "pres":  # convert to P/kB
         field_data = pf["pres"][()][blist] * (u.g / u.cm / u.s**2) / const.k_B.cgs
-        field_data = field_data.to("K/cm**3")
+        if "prcr" in pf.keys():
+            field_data += pf["prcr"][()][blist] * (u.g / u.cm / u.s**2) / const.k_B.cgs
+        field_data = field_data.to_value("K/cm**3")
     elif field == "plasma_beta":
         field_data =  8 * np.pi * pf["pres"][()][blist] * (u.g / u.cm / u.s**2)
 
@@ -36,6 +38,8 @@ def get_transformed_data(pf : h5py.File, field : str, blist):
 
     elif field == "encr":
         field_data = pf["encr"][()][blist] * pf["dens"][()][blist]
+    elif field == 'einj':
+        field_data = pf['einj'][()][blist] * pf["dens"][()][blist]
     elif field == "alpha_inj":
         shma_data = pf["shma"][()][blist]
         geff_data = pf["geff"][()][blist]

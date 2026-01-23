@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import os
 import astropy.units as u
 import json
+import shutil
 
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
@@ -28,6 +29,9 @@ args = parser.parse_args()
 fig_dir = "/home/kwatanabe/Projects/cr-bowshocks/figures/slices_bx"
 flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/outputs_new"
 
+# fig_dir = "/home/kwatanabe/Projects/cr-bowshocks/figures/lowres_test"
+# flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/FlashISM/runs"
+
 # load the bowshock config
 bowshock_config = json.load(open("../config/bowshock_config.json", "r"))["config"]
 
@@ -37,13 +41,17 @@ field = args.field
 pos = args.pos
 axis = args.axis
 
+# sim_dir = os.path.join(flash_output_dir, sim_name)
 sim_dir = os.path.join(flash_output_dir, bowshock_config[sim_name]["sim_dir"])
 
-if not os.path.exists(f"{fig_dir}/{sim_name}"):
-    os.mkdir(f"{fig_dir}/{sim_name}")
+# if not os.path.exists(f"{fig_dir}/{sim_name}"):
+#     os.mkdir(f"{fig_dir}/{sim_name}")
 
-if not os.path.exists(f"{fig_dir}/{sim_name}/{field}"):
-    os.mkdir(f"{fig_dir}/{sim_name}/{field}")
+if os.path.exists(f"{fig_dir}/{sim_name}/{field}"):
+    shutil.rmtree(f"{fig_dir}/{sim_name}/{field}")
+
+os.makedirs(f"{fig_dir}/{sim_name}/{field}")
+    # os.mkdir(f"{fig_dir}/{sim_name}/{field}")
 
 # get list of all files
 sim_files = []
@@ -55,15 +63,16 @@ for file in os.listdir(sim_dir):
 # sort 
 sim_files = sorted(sim_files)
 
+
 # truncate to every 10 plot files if we have over 200 plot files
 # if len(sim_files) > 200:
 #     sim_files = sim_files[::10]
-
+times_already_ran = []
 # loop over each file and get the slice
 for it, sim_file in enumerate(sim_files):
     print(sim_file)
-    if it == 3 or it == 4:
-        continue
+    # if it == 3 or it == 4:
+    #     continue
     # if it > 0:
     #     continue
     blist, brefs, bns = flash_amr_tools.get_true_blocks(f"{sim_dir}/{sim_file}")
@@ -74,9 +83,19 @@ for it, sim_file in enumerate(sim_files):
     ref_lvl = pf["refine level"][()][blist]
     bbox = pf["bounding box"][()][blist]
     bsize = pf["block size"][()][blist]
+    time = (pf['real scalars'][0][1] * u.s).to(u.kyr)
     field_data = get_transformed_data(pf, field, blist)
     pf.close()
 
+    # skip if time is duplicate
+    if it > 0 and np.isin(np.around(time.value, decimals=2), times_already_ran):
+        print(f"Skipping duplicate time step {time:.2f}.")
+        continue
+
+    if time.value > 190:
+        break
+    
+    times_already_ran.append(np.around(time.value, decimals=2))
     print(field_data.max(), field_data.min())
 
 
@@ -111,6 +130,10 @@ for it, sim_file in enumerate(sim_files):
     ax.tick_params(axis='both', direction="in", which='major', size=8, labelsize=18)
     ax.tick_params(axis='both', direction="in", which='minor', size=6, labelsize=16)
 
+    ax.annotate(f"t={time.value:.0f} kyr", xy=(35, -20), fontsize=22)
+
+    ax.set_xlim(-25, 50)
+
     # colorbar
     # make separate axes for each image
     divider = make_axes_locatable(ax)
@@ -133,6 +156,6 @@ for it, sim_file in enumerate(sim_files):
         cb.ax.set_yscale(field_scales[field])
 
     # save
-    fig.savefig(f"{fig_dir}/{sim_name}/{field}/{field}_{sim_file[-4:]}.png", bbox_inches="tight", dpi=300)
+    fig.savefig(f"{fig_dir}/{sim_name}/{field}/{field}_t{int(time.value):03d}.png", bbox_inches="tight", dpi=300)
 
     plt.close(fig)

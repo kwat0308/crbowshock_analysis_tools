@@ -29,9 +29,9 @@ def get_transformed_data(pf : h5py.File, field : str, blist):
     elif field == "plasma_beta":
         field_data =  8 * np.pi * pf["pres"][()][blist] * (u.g / u.cm / u.s**2)
 
-        field_val_mag = pf[f"magx"][()][blist]**2
-        field_val_mag += pf[f"magy"][()][blist]**2 
-        field_val_mag += pf[f"magz"][()][blist]**2 
+        field_val_mag = pf["magx"][()][blist]**2
+        field_val_mag += pf["magy"][()][blist]**2 
+        field_val_mag += pf["magz"][()][blist]**2 
         field_data /= field_val_mag
 
         del field_val_mag
@@ -52,7 +52,7 @@ def get_transformed_data(pf : h5py.File, field : str, blist):
     return field_data
      
 
-def get_shock_mask(pf : h5py.File, blist, shock="outer", dens_thresh=1e-27, pres_thresh=2e3 * (u.K / u.cm**3)):
+def get_shock_mask(pf : h5py.File, blist, shock="outer", dens_thresh=1e-27, pres_thresh=2e3):
     '''Get shock mask (outer or termination shock) based on density criterion.
     
     Additional pressure criterion due to artefacts that are somehow produced in the B=Bx run.'''
