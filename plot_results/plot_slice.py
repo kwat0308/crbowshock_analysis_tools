@@ -26,8 +26,8 @@ parser.add_argument("--axis", action="store", type=int, help="Axis of slice", de
 
 args = parser.parse_args()
 
-fig_dir = "/home/kwatanabe/Projects/cr-bowshocks/figures/slices_bx"
-flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/outputs_new"
+fig_dir = "/home/kwatanabe/Projects/cr-bowshocks/figures/revised/slices"
+flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/updated_outputs"
 
 # fig_dir = "/home/kwatanabe/Projects/cr-bowshocks/figures/lowres_test"
 # flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/FlashISM/runs"
@@ -92,8 +92,8 @@ for it, sim_file in enumerate(sim_files):
         print(f"Skipping duplicate time step {time:.2f}.")
         continue
 
-    if time.value > 190:
-        break
+    # if time.value > 190:
+    #     break
     
     times_already_ran.append(np.around(time.value, decimals=2))
     print(field_data.max(), field_data.min())
@@ -133,6 +133,7 @@ for it, sim_file in enumerate(sim_files):
     ax.annotate(f"t={time.value:.0f} kyr", xy=(35, -20), fontsize=22)
 
     ax.set_xlim(-25, 50)
+    ax.set_ylim(-15, 15)
 
     # colorbar
     # make separate axes for each image

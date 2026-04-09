@@ -1,34 +1,34 @@
 {
     "config" : {
-        "ISM-v30": {
-            "sim_dir":"ISM_v30_CR",
+        "ISM-v40-LDiff": {
+            "sim_dir":"ISM-v40-LDiff",
             "mstar":20,
-            "vstar":30,
+            "vstar":40,
             "env_name":"ISM",
             "kappa_10":3e25,
             "color":"royalblue",
-            "label" : "ISM-v30-LDiff"
+            "label" : "ISM-v40-LDiff"
         },
-        "ISM-v30-MDiff": {
-            "sim_dir":"ISM_v30_CR_MDiff",
+        "ISM-v40-MDiff": {
+            "sim_dir":"ISM-v40-MDiff",
             "mstar":20,
-            "vstar":30,
+            "vstar":40,
             "env_name":"ISM",
             "kappa_10":3e24,
             "color":"forestgreen",
-            "label" : "ISM-v30-MDiff"
+            "label" : "ISM-v40-MDiff"
         },
-        "ISM-v30-HDiff": {
-            "sim_dir":"ISM_v30_CR_HDiff",
+        "ISM-v40-HDiff": {
+            "sim_dir":"ISM-v40-HDiff",
             "mstar":20,
-            "vstar":30,
+            "vstar":40,
             "env_name":"ISM",
             "kappa_10":3e26,
             "color":"indianred",
-            "label" : "ISM-v30-HDiff"
+            "label" : "ISM-v40-HDiff"
         },
-        "ISM-v100": {
-            "sim_dir":"ISM_v100_CR",
+        "ISM-v100-MDiff": {
+            "sim_dir":"ISM-v100-MDiff",
             "mstar":20,
             "vstar":100,
             "env_name":"ISM",
@@ -36,14 +36,14 @@
             "color":"blueviolet",
             "label" : "ISM-v100-MDiff"
         },
-        "ISM-v30-MHD": {
-            "sim_dir":"ISM_v30_MHD",
+        "ISM-v40-MHD": {
+            "sim_dir":"ISM-v40-MHD",
             "mstar":20,
-            "vstar":30,
+            "vstar":40,
             "env_name":"ISM",
             "kappa_10":"None",
             "color":"dimgray",
-            "label" : "ISM-v30-MHD"
+            "label" : "ISM-v40-MHD"
         }
     },
     "shock_labels" : {
