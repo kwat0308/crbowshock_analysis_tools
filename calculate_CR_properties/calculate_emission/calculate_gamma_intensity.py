@@ -26,7 +26,7 @@ def find_hdf5_file_from_time(time, sim_dir):
             
     return None
 
-flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/outputs_new"
+flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/updated_outputs"
 fig_dir = "/home/kwatanabe/Projects/cr-bowshocks/figures"
 data_dir = "/home/kwatanabe/Projects/cr-bowshocks/crbowshock_analysis_tools/data"
 
@@ -119,7 +119,7 @@ gam_lum_arr = gam_lum_arr[np.argsort(times)]
 times = np.sort(times)
 
 # write data to h5py file
-with h5py.File(f"{data_dir}/emission_data_gamma_timecorrected.h5", "a") as pf:
+with h5py.File(f"{data_dir}/emission_data_gamma_revised.h5", "a") as pf:
     sim_gr = pf.create_group(sim_name) if sim_name not in pf.keys() else pf[sim_name]
 
     if "times" in pf[sim_name].keys():
