@@ -49,7 +49,8 @@ flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/updated_outputs"
 data_dir = "/home/kwatanabe/Projects/cr-bowshocks/crbowshock_analysis_tools/data"
 
 # initial parameters
-field_names = ["mgob"]
+# field_names = ["encr", "geff", "shma", "mgob", 'crac', 'einj']
+field_names = ["alpha_inj"]
 theta_ranges = [(0,30), (30,60), (60,90), (90,120), (120,150),(150,180)]
 
 # load the bowshock config

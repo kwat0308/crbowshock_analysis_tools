@@ -20,8 +20,8 @@ done
 # data_dir="/home/kwatanabe/Projects/cr-bowshocks/figures/lowres_test/$SIM"
 # ani_dir="/home/kwatanabe/Projects/cr-bowshocks/figures/lowres_test/$SIM"
 
-data_dir="/home/kwatanabe/Projects/cr-bowshocks/figures/slices_bx/$SIM"
-ani_dir="/home/kwatanabe/Projects/cr-bowshocks/figures/animations_bx/$SIM"
+data_dir="/home/kwatanabe/Projects/cr-bowshocks/figures/revised_slices/slices/$SIM"
+ani_dir="/home/kwatanabe/Projects/cr-bowshocks/figures/revised_slices/animations/$SIM"
 
 if [ ! -d "$ani_dir" ]; then
     mkdir "$ani_dir"

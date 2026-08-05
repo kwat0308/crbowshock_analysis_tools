@@ -20,7 +20,7 @@ import flash_amr_tools
 
 import argparse
 
-flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/outputs_new"
+flash_output_dir = "/home/kwatanabe/Projects/cr-bowshocks/updated_outputs"
 fig_dir = "/home/kwatanabe/Projects/cr-bowshocks/figures"
 data_dir = "/home/kwatanabe/Projects/cr-bowshocks/crbowshock_analysis_tools/data"
 
@@ -62,17 +62,46 @@ parser.add_argument(
     choices=list(bowshock_config.keys()),
 )
 
+parser.add_argument(
+    "--chunk_size",
+    action="store",
+    type=int,
+    help="chunk size",
+    default=50
+)
+
 args = parser.parse_args()
 
 # here we define the normalised momentum grid for both protons and electrons,
-p_arr = np.logspace(-3, 6, 200)  # in units of m c
+
+# pp_arr = np.logspace(0.8, 4, 200) * u.GeV / c  # energy grid for protons
+# pp_arr = (pp_arr / (mp * c)).to_value(
+#     u.dimensionless_unscaled
+# )  # normalised momentum wrt protons
+pp_arr = np.logspace(0, 4, 200)
+print(
+    f"Minimum & maximum of normalised momentum (protons): {(pp_arr.min() * mp * c**2).to(u.GeV):.5e}, {(pp_arr.max() * mp * c**2).to(u.GeV):.5e}"
+)
+
+# pe_arr = np.logspace(-5, 4, 200) * u.GeV / c # energy grid for electrons
+# pe_arr = (pe_arr / (me * c)).to_value(
+#     u.dimensionless_unscaled
+# )  # normalised momentum wrt protons
+pe_arr = np.logspace(2, 7, 200)
+print(
+    f"Minimum & maximum of normalised momentum (electrons): {(pe_arr.min() * me * c**2).to(u.GeV):.5e}, {(pe_arr.max() * me * c**2).to(u.GeV):.5e}"
+)
+
 Kep, pp0, pe0 = (
     ep_ratio()
 )  # get the normalisation for the electron spectrum based on the proton spectrum at 10 GeV, and the corresponding momenta
 
-synch_freqs = np.linspace(0.5, 15, 30) * u.GHz  # in Hz
+synch_freqs = np.array([
+    0.5, 1.5, 3.0, 5.0, 10.0, 15.0
+]) * u.GHz  # in Hz
 
 sim_name = args.sim_name
+chunk_size = args.chunk_size
 
 print(f"Performing calculation for {sim_name}")
 
@@ -130,6 +159,11 @@ for arg in args_list:
         pf.close()
         continue
 
+    if time > 505 * u.kyr:
+        print(f"Time {time.to(u.kyr)} > 500 kyr, ending computation")
+        pf.close()
+        break
+
     print(f"Processing {sim_file}, time = {time.to(u.kyr)}")
 
     # loop over each file and get the slice
@@ -139,235 +173,350 @@ for arg in args_list:
 
     # LoS magnetic field (in Gauss)  ==  z-axis -> transverse is Bx and By contributions
     # Blos_data = np.abs(pf["magx"][()][blist]) + np.abs(pf["magy"][()][blist])
-    Blos_data = (2 / 3) * np.sqrt(
-        pf["magx"][()][blist] ** 2
-        + pf["magy"][()][blist] ** 2
-        + pf["magz"][()][blist] ** 2
+    Blos_data = (
+        (2 / 3)
+        * np.sqrt(
+            pf["magx"][()][blist] ** 2
+            + pf["magy"][()][blist] ** 2
+            + pf["magz"][()][blist] ** 2
+        )
+        * u.G
     )
-    Blos_data[Blos_data < 1e-30] = 1e-30  # set a floor to avoid issues
-    dens_data = pf["dens"][()][blist]
-    dens_data[dens_data < 1e-40] = 1e-40  # set a floor to avoid issues
+    Blos_data[Blos_data < 1e-30 * u.G] = 1e-30 * u.G  # set a floor to avoid issues
+    dens_data = pf["dens"][()][blist] * u.g / u.cm**3
+    dens_data[dens_data < 1e-40 * u.g / u.cm**3] = (
+        1e-40 * u.g / u.cm**3
+    )  # set a floor to avoid issues
     vel_data = np.sqrt(
         pf["velx"][()][blist] ** 2
         + pf["vely"][()][blist] ** 2
         + pf["velz"][()][blist] ** 2
-    )
+    ) * (u.cm / u.s)
     encr_data = (
         (pf["encr"][()][blist] * pf["dens"][()][blist]) * u.erg / u.cm**3
     )  #  CR energy density in erg/cm^3
 
+    # computing cell size
+    bbox = pf["bounding box"][()][blist]
+    node_type = pf["node type"][()][blist]
+    low_corner = bbox[:, :, 0]
+    cell_dx = pf["block size"][()][blist][:, 0] / 8
+    cell_dy = pf["block size"][()][blist][:, 1] / 8
+    cell_dz = pf["block size"][()][blist][:, 2] / 8
+    cell_d = np.array((cell_dx, cell_dy, cell_dz))
+
+    # meshgrid of cell sizes
+    k, j, i = np.meshgrid(range(8), range(8), range(8), indexing="ij")
+
+    # mask to get all leaf nodes (those with max refinement in each block)
+    leafmask = node_type == 1
+
+    # x coordinate at lead node
+    xcoord = low_corner[leafmask, 0, None, None, None] + cell_dx[
+        leafmask, None, None, None
+    ] * (
+        0.5 + i[None,]
+    )
+    ycoord = low_corner[leafmask, 1, None, None, None] + cell_dy[
+        leafmask, None, None, None
+    ] * (
+        0.5 + j[None,]
+    )
+    zcoord = low_corner[leafmask, 2, None, None, None] + cell_dz[
+        leafmask, None, None, None
+    ] * (
+        0.5 + k[None,]
+    )
+    rcoord = np.sqrt(xcoord**2 + ycoord**2 + zcoord**2) * u.cm
+    del (
+        xcoord,
+        ycoord,
+        zcoord,
+        leafmask,
+        i,
+        j,
+        k,
+        cell_dx,
+        cell_dy,
+        cell_dz,
+        low_corner,
+        bbox,
+    )
+
     synch_output_file = f"{output_dir}/emission_data_t{time.to(u.kyr).value:.0f}.h5"
-    synch_output_h5 = h5py.File(synch_output_file, "w")
+    synch_output_h5 = h5py.File(synch_output_file, "a")
 
-    # calculate the energy loss terms for each
-    b_hadr_data = b_hadr(p_arr[:, None, None, None], dens_data[None, :, :, :])
-    synch_output_h5.create_dataset(
-        "b_hadr", data=b_hadr_data, compression="gzip", compression_opts=9
-    )
-    del b_hadr_data
-    b_coul_data = b_coul(p_arr[:, None, None, None], dens_data[None, :, :, :])
-    synch_output_h5.create_dataset(
-        "b_coul", data=b_coul_data, compression="gzip", compression_opts=9
-    )
-    del b_coul_data
-    b_adiab_data = b_adiab(p_arr[:, None, None, None], vel_data[None, :, :, :])
-    synch_output_h5.create_dataset(
-        "b_adiab", data=b_adiab_data, compression="gzip", compression_opts=9
-    )
-    del b_adiab_data
-    b_synch_data = b_synch(p_arr[:, None, None, None], Blos_data[None, :, :, :])
-    synch_output_h5.create_dataset(
-        "b_synch", data=b_synch_data, compression="gzip", compression_opts=9
-    )
-    del b_synch_data
-    b_ic_photon_data = b_ic_photon(p_arr[:, None, None, None])
-    synch_output_h5.create_dataset(
-        "b_ic_photon", data=b_ic_photon_data, compression="gzip", compression_opts=9
-    )
-    del b_ic_photon_data
-    b_ic_star_data = b_ic_star(p_arr[:, None, None, None], Tstar=1e4 * u.K)
-    synch_output_h5.create_dataset(
-        "b_ic_star", data=b_ic_star_data, compression="gzip", compression_opts=9
-    )
-    del b_ic_star_data
-
-    # similarly calculate the steady state spectra for protons and electrons
-    f_p_0_data = f_p_0(
-        args.alpha_inj_p,
-        p_arr[:, None, None, None],
-        dens_data[None, :, :, :],
-        vel_data[None, :, :, :],
-        pmax=bowshock_config[sim_name]["pmax_prot"],
-    )
-
-    # number density also
-    # this is calcualted by the ratio of n / ecr * ecr_data, where n is the number density of CRs calculated by integrating over the momentum grid, and ecr_data is the CR energy density from the simulation data
-
-    ncr_p = np.trapz(
-        4 * np.pi * p_arr[:, None, None, None] ** 2 * f_p_0_data,
-        x=p_arr[:, None, None, None],
-        axis=0,
-    )
-    ecr_p = np.trapz(
-        4 * np.pi * p_arr[:, None, None, None] ** 2 * ekin(p_arr[:, None, None, None]) * f_p_0_data,
-        x=p_arr[:, None, None, None],
-        axis=0,
-    ) / ncr_p * (mpc2)
-
-    ncr_p_data = (ncr_p / ecr_p * encr_data).to_value(u.cm**-3)
-    synch_output_h5.create_dataset(
-        "ncr_p", data=ncr_p_data, compression="gzip", compression_opts=9
-    )
-    del ncr_p_data
-
-    synch_output_h5.create_dataset(
-        "f_p_0", data=f_p_0_data, compression="gzip", compression_opts=9
-    )
-    del f_p_0_data
-
-    f_e_0_data = f_e_0(
-        args.alpha_inj_e,
-        p_arr[:, None, None, None],
-        Blos_data[None, :, :, :],
-        Tstar=1e4 * u.K,  # assumed based on stellar track from Ekstrom+2012
-        vel=vel_data[None, :, :, :],
-        pmax=bowshock_config[sim_name]["pmax_elec"],
-    )
-
-    # for electrons, need to renormalise the spectrum based on the ep ratio at 10 GeV
-    f_e_data = (
-        Kep
-        * f_p_0(
-            args.alpha_inj_p,
-            pp0,
-            dens_data[:, :, :],
-            vel_data[:, :, :],
-            pmax=bowshock_config[sim_name]["pmax_prot"],
-        )
-        / f_e_0(
-            args.alpha_inj_e,
-            pe0,
-            Blos_data[:, :, :],
-            Tstar=1e4 * u.K,
-            vel=vel_data[:, :, :],
-            pmax=bowshock_config[sim_name]["pmax_elec"],
-        )
-        * f_e_0_data
-    )
-    synch_output_h5.create_dataset(
-        "f_e_0", data=f_e_data, compression="gzip", compression_opts=9
-    )
-    del f_e_0_data
-
-    ncr_e = np.trapz(
-        4 * np.pi * p_arr[:, None, None, None] ** 2 * f_e_data,
-        x=p_arr[:, None, None, None],
-        axis=0,
-    )
-    ecr_e = np.trapz(
-        4 * np.pi * p_arr[:, None, None, None] ** 2 * ekin(p_arr[:, None, None, None]) * f_e_data,
-        x=p_arr[:, None, None, None],
-        axis=0,
-    ) / ncr_e * (mec2)
-
-    ncr_e_data = (ncr_e / ecr_p * encr_data).to_value(u.cm**-3)
-    encr_e_data = (ecr_e / ecr_p * encr_data).to_value(u.erg / u.cm**3)
-    synch_output_h5.create_dataset(
-        "ncr_e", data=ncr_e_data, compression="gzip", compression_opts=9
-    )
-    synch_output_h5.create_dataset(
-        "encr_e", data=encr_e_data, compression="gzip", compression_opts=9
-    )
-    del ncr_e_data
-    del encr_e_data
-    del ecr_e
-
-    # now for synchrotron emission related stuff
-    nu_crit_data = crit_freq(Blos=Blos_data[None, :, :, :], pele=p_arr[:, None, None, None])
-    synch_output_h5.create_dataset(
-        "nu_crit", data=nu_crit_data, compression="gzip", compression_opts=9
-    )
-
+    # # now for synchrotron emission related stuff
+    # nu_crit_data = crit_freq(Blos=Blos_data[None, :, :, :, :], pele=pe_arr[:, None, None, None, None])
+    # print(f"Critial Frequency in Hz: {nu_crit_data.min():.2e}, {nu_crit_data.max():.2e}")
+    # synch_output_h5.create_dataset(
+    #     "nu_crit", data=nu_crit_data.value, compression="lzf", dtype='float32', shape=nu_crit_data.shape, chunks=(200, 100, 8, 8, 8)
+    # )
     synch_coeff = (
         np.sqrt(3)
-        * Blos_data  # LoS B-field in Gauss
+        * Blos_data.value  # LoS B-field in Gauss
         * const.e.gauss.value**3
         / (const.m_e.cgs.value * const.c.cgs.value**2)
     )
-    synch_output_h5.create_dataset(
-        "synch_coeff", data=synch_coeff, compression="gzip", compression_opts=9
+    print(
+        f"Sycnrhtron Emission Strength: {synch_coeff.min():.2e}, {synch_coeff.max():.2e}"
     )
+    # if "synch_coeff" in synch_output_h5:
+    #     del synch_output_h5['synch_coeff']
+    # synch_output_h5.create_dataset(
+    #     "synch_coeff", data=synch_coeff, compression="lzf", dtype='float32', shape=synch_coeff.shape, chunks=(100, 8, 8, 8)
+    # )
 
-     # get other properties from h5py file
-    bbox = pf["bounding box"][()][blist]
-    bsize = pf["block size"][()][blist]
+    # recalculate this value
+    ecr_p_val = np.zeros(dens_data.shape) * (u.s**(11/5) / (u.cm**(6/5) * u.g**(11/5)))
+    ncr_p_val = np.zeros(dens_data.shape) * (u.s**(21/5) / (u.cm**(16/5) * u.g**(16/5)))
 
-    low_cor, up_cor = bbox[0, :, 0], bbox[-1, :, 1]
+    for pp_start in range(0, len(pp_arr), chunk_size):
+        print(f"Calculating ncr and ecr for protons, momentum bin {pp_start} to {pp_start+chunk_size}")
+        pp_end = min(pp_start + chunk_size, len(pp_arr))
+        pp_chunk = pp_arr[pp_start:pp_end]
 
-    # # compute synchrotron luminosity
-    # now we need to add astropy units since we would once convert to pc
-    # as cm^3 with 1e21 overloads
-    cell_size_data = (
-        np.tile(bsize[:, 0] / 8.0, reps=(8, 8, 8)).reshape((bsize.shape[0], 8, 8, 8))
-        * u.cm
-    ).to_value(u.pc)
+        f_p_0_chunk = f_p_0(
+            args.alpha_inj_p,
+            pp_chunk[:, None, None, None, None],
+            dens_data[None, :, :, :, :],
+            vel_data[None, :, :, :, :],
+            pmax=bowshock_config[sim_name]["pmax_prot"],
+            vstar=bowshock_config[sim_name]["vstar"] * (u.km/u.s)
+        )
+
+        ncr_p_chunk = np.trapz(
+            4 * np.pi * pp_chunk[:, None, None, None, None] ** 2 * f_p_0_chunk,
+            x=pp_chunk[:, None, None, None, None],
+            axis=0,
+        )
+
+        ecr_p_chunk = np.trapz(
+            4 * np.pi * pp_chunk[:, None, None, None, None] ** 2 * ekin(pp_chunk[:, None, None, None, None]) * f_p_0_chunk,
+            x=pp_chunk[:, None, None, None, None],
+            axis=0,
+        ) * (mpc2)
+
+        ecr_p_val += ecr_p_chunk.sum(axis=0)  # this is just the normalisation factor for the CR energy density, which we will use to renormalise the electron spectrum based on the ep ratio at 10 GeV
+
+        ncr_p_val += ncr_p_chunk.sum(axis=0)
+        del f_p_0_chunk, ecr_p_chunk, ncr_p_chunk
+
+    # print(ecr_p_val.min(), ecr_p_val.max())
+    ecr_p = (ecr_p_val / ncr_p_val).to(u.GeV)
+    print(ecr_p.min(), ecr_p.max())
+    del ncr_p_val, ecr_p_val
+
+    ncr_e_val = np.zeros(dens_data.shape) * (u.s**(21/5) / (u.cm**(16/5) * u.g**(16/5)))
+    for pe_start in range(0, len(pe_arr), chunk_size):
+        print(
+            f"Calculating ncr and ecr for electrons, momentum bin {pe_start} to {pe_start+chunk_size}"
+        )
+        pe_end = min(pe_start + chunk_size, len(pe_arr))
+        pe_chunk = pe_arr[pe_start:pe_end]
+
+        f_e_0_chunk = f_e_0(
+            args.alpha_inj_e,
+            pe_chunk[:, None, None, None, None],
+            dens_data[None, :, :, :, :],
+            Blos_data[None, :, :, :, :],
+            Tstar=1e4 * u.K,  # assumed based on stellar track from Ekstrom+2012
+            vel=vel_data[None, :, :, :, :],
+            pmax=bowshock_config[sim_name]["pmax_electr"],
+            vstar=bowshock_config[sim_name]["vstar"] * (u.km / u.s),
+            r_pos=rcoord[None, ...],
+        )
+
+        # for electrons, need to renormalise the spectrum based on the ep ratio at 10 GeV
+        f_e_chunk = (
+            Kep
+            * f_p_0(
+                args.alpha_inj_p,
+                pp0,
+                dens_data,
+                vel_data,
+                pmax=bowshock_config[sim_name]["pmax_prot"],
+                vstar=bowshock_config[sim_name]["vstar"] * (u.km / u.s),
+            )
+            / f_e_0(
+                args.alpha_inj_e,
+                pe0,
+                dens_data,
+                Blos_data,
+                Tstar=1e4 * u.K,
+                vel=vel_data,
+                pmax=bowshock_config[sim_name]["pmax_electr"],
+                vstar=bowshock_config[sim_name]["vstar"] * (u.km / u.s),
+                r_pos=rcoord[None, ...],
+            )
+            * f_e_0_chunk
+        )
+        del f_e_0_chunk
+
+        ncr_e_chunk = np.trapz( 4 * np.pi * pe_chunk[:, None, None, None, None] ** 2 * f_e_chunk,
+            x=pe_chunk[:, None, None, None, None],
+            axis=0,
+        )
+
+        ncr_e_val += ncr_e_chunk.sum(axis=0)
+        del f_e_chunk, ncr_e_chunk
+
+    print(f"Number density of CR electrons in a.u.: {ncr_e_val.min().value:.2e}, {ncr_e_val.max().value:.2e}")
+    # break
 
     synch_lum_per_freq = []
 
     for synch_freq in synch_freqs:
-        synch_freq_ratio = (synch_freq / nu_crit_data).to_value(u.dimensionless_unscaled)
-        synch_kernel_data = synch_kernel(synch_freq_ratio)
-        del synch_freq_ratio
+        
+        ncre_synch_data = np.zeros(dens_data.shape)
+        for pe_start in range(0, len(pe_arr), chunk_size):
+            print(
+                f"Calculating ncr and ecr for synch. electrons, momentum bin {pe_start} to {pe_start+chunk_size}"
+            )
+            pe_end = min(pe_start + chunk_size, len(pe_arr))
+            pe_chunk = pe_arr[pe_start:pe_end]
 
-        synch_output_h5.create_dataset(
-            f"synch_kernel_{synch_freq.to(u.GHz).value:.2f}GHz",
-            data=synch_kernel_data,
-            compression="gzip",
-            compression_opts=9,
+            f_e_0_chunk = f_e_0(
+                args.alpha_inj_e,
+                pe_chunk[:, None, None, None, None],
+                dens_data[None, :, :, :, :],
+                Blos_data[None, :, :, :, :],
+                Tstar=1e4 * u.K,  # assumed based on stellar track from Ekstrom+2012
+                vel=vel_data[None, :, :, :, :],
+                pmax=bowshock_config[sim_name]["pmax_electr"],
+                vstar=bowshock_config[sim_name]["vstar"] * (u.km / u.s),
+                r_pos=rcoord[None, ...],
+            )
+
+            # for electrons, need to renormalise the spectrum based on the ep ratio at 10 GeV
+            f_e_chunk = (
+                Kep
+                * f_p_0(
+                    args.alpha_inj_p,
+                    pp0,
+                    dens_data,
+                    vel_data,
+                    pmax=bowshock_config[sim_name]["pmax_prot"],
+                    vstar=bowshock_config[sim_name]["vstar"] * (u.km / u.s),
+                )
+                / f_e_0(
+                    args.alpha_inj_e,
+                    pe0,
+                    dens_data,
+                    Blos_data,
+                    Tstar=1e4 * u.K,
+                    vel=vel_data,
+                    pmax=bowshock_config[sim_name]["pmax_electr"],
+                    vstar=bowshock_config[sim_name]["vstar"] * (u.km / u.s),
+                    r_pos=rcoord[None, ...],
+                )
+                * f_e_0_chunk
+            )
+            del f_e_0_chunk
+            ### CALCULATE THE NCREEEEE
+            # THEN NORMALISE
+
+            nu_crit_data = crit_freq(
+                Blos=Blos_data[None, :, :, :, :],
+                pele=pe_chunk[:, None, None, None, None],
+            )
+            synch_freq_ratio = (synch_freq / nu_crit_data).to_value(
+                u.dimensionless_unscaled
+            )
+            synch_kernel_data = synch_kernel(synch_freq_ratio)
+            del synch_freq_ratio
+            # print(
+            #     f"Synchrotron Kernal at {synch_freq}: {synch_kernel_data.min():.2e}, {synch_kernel_data.max():.2e}"
+            # )
+            # within_integral = 4 * np.pi * pe_chunk[:, None, None, None, None] ** 2 * f_e_chunk * synch_kernel_data
+            # print(f"Within integral for ncre_synch at {synch_freq}: {within_integral.min():.2e}, {within_integral.max():.2e}")
+            
+            # effectively a weighted sum of electrons, ratioed by the 
+            # cosmic ray proton energy
+            # normalize by the total number fraction of electrons
+            ncre_synch = np.trapz(
+                4
+                * np.pi
+                * pe_chunk[:, None, None, None, None] ** 2
+                * f_e_chunk
+                * synch_kernel_data,
+                x=pe_chunk[:, None, None, None, None],
+                axis=0,
+            ) / ncr_e_val
+
+            ncre_synch_data += ncre_synch.sum(axis=0)
+            del f_e_chunk, ncre_synch
+
+        ncre_synch_data = (ncre_synch_data / ecr_p * encr_data).to_value(u.cm**-3)
+
+        print(
+            f"CR electrons undergoing synchrotron emission at {synch_freq}: {ncre_synch_data.min():.2e}, {ncre_synch_data.max():.2e}"
         )
-
-        ncre_synch = np.trapz(
-            4 * np.pi * p_arr[:, None, None, None] ** 2 * f_e_data * synch_kernel_data,
-            x=p_arr[:, None, None, None],
-            axis=0,
-        ) / ncr_e
-        ncre_synch_data = (ncre_synch / ecr_p * encr_data).to_value(u.cm**-3)
+        ncre_synch_label = f"ncre_synch_{synch_freq.to(u.GHz).value:.2f}GHz"
+        if ncre_synch_label in synch_output_h5:
+            del synch_output_h5[ncre_synch_label]
         synch_output_h5.create_dataset(
-            f"ncre_synch_{synch_freq.to(u.GHz).value:.2f}GHz",
+            ncre_synch_label,
             data=ncre_synch_data,
-            compression="gzip",
-            compression_opts=9,
+            compression="lzf",
+            dtype="float32",
+            shape=ncre_synch_data.shape,
+            chunks=(100, 8, 8, 8),
         )
 
         synch_intensity_data = (
-            synch_coeff
-            * ncre_synch_data
-            * u.erg / u.s / u.Hz / u.cm**3
+            synch_coeff * ncre_synch_data * u.erg / u.s / u.Hz / u.cm**3
         ).to_value(u.erg / u.s / u.Hz / u.cm**3)
-        synch_output_h5.create_dataset(
-            f"synch_intensity_{synch_freq.to(u.GHz).value:.2f}GHz",
-            data=synch_intensity_data,
-            compression="gzip",
-            compression_opts=9,
+        print(
+            f"Synchrotron intensity at {synch_freq} (erg/s/Hz/cm^3): {synch_intensity_data.min():.2e}, {synch_intensity_data.max():.2e}"
         )
+        synch_intens_label = f"synch_intensity_{synch_freq.to(u.GHz).value:.2f}GHz"
+        if synch_intens_label in synch_output_h5:
+            del synch_output_h5[synch_intens_label]
+        synch_output_h5.create_dataset(
+            synch_intens_label,
+            data=synch_intensity_data,
+            compression="lzf",
+            dtype="float32",
+            shape=synch_intensity_data.shape,
+            chunks=(100, 8, 8, 8),
+        )
+        del ncre_synch_data
+
+        # get other properties from h5py file
+        bbox = pf["bounding box"][()][blist]
+        bsize = pf["block size"][()][blist]
+
+        low_cor, up_cor = bbox[0, :, 0], bbox[-1, :, 1]
+
+        # compute synchrotron luminosity
+        cell_size_data = (
+            np.tile(bsize[:, 0] / 8.0, reps=(8, 8, 8)).reshape(
+                (bsize.shape[0], 8, 8, 8)
+            )
+            * u.cm
+        ).to_value(u.pc)
 
         # luminosity
         synch_lum = np.sum(
-            (synch_intensity_data * (u.erg / u.s / u.Hz / u.cm**3)).to_value(u.erg / u.s / u.pc**3) * cell_size_data**3,
+            (synch_intensity_data * (u.erg / u.s / u.Hz / u.cm**3)).to_value(
+                u.erg / u.s / u.Hz / u.pc**3
+            )
+            * cell_size_data**3,
             axis=(0, 1, 2, 3),
         )
-        print(f"Synchrotron luminosity at {synch_freq.to(u.GHz).value:.2f} GHz: {synch_lum:.2e} erg/s/Hz")
+        print(
+            f"Synchrotron luminosity at {synch_freq.to(u.GHz).value:.2f} GHz: {synch_lum:.2e} erg/s/Hz"
+        )
         synch_lum_per_freq.append(synch_lum)
 
         del synch_intensity_data
-        del ncre_synch_data
         del synch_kernel_data
 
-    del f_e_data
-
     synch_output_h5.close()
+    del ecr_p
+    del ncr_e_val
 
-   
     # # specific synchrotron intensity is in -> E dN/(dV dt), in units of erg / s / Hz / cm^3
     # # NB: astropy doesnt properly take care of cgs units with magnetic fields, so we convert them to values instead and add units later
     # synch_coeff = (
@@ -460,7 +609,6 @@ for arg in args_list:
     # del synch_coeff
     # del Blos_data
 
-
     print(np.array(synch_lum_per_freq) * synch_freqs.to_value(u.Hz))
 
     times.append(time.to_value(u.s))
@@ -484,9 +632,7 @@ synch_lum_arr = synch_lum_arr[np.argsort(times), :]
 times = np.sort(times)
 
 # write data to h5py file
-with h5py.File(
-    f"{data_dir}/emission_data_synch.h5", "a"
-) as pf:
+with h5py.File(f"{data_dir}/emission_data_synch.h5", "a") as pf:
     sim_gr = pf.create_group(sim_name) if sim_name not in pf.keys() else pf[sim_name]
 
     if "times" in pf[sim_name].keys():

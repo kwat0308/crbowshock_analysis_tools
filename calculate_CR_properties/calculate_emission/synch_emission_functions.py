@@ -8,6 +8,7 @@ import json
 import astropy.units as u
 import astropy.constants as const
 from scipy.special import gammainc, gamma
+from scipy.integrate import quad
 
 
 # energy parameters
@@ -17,7 +18,7 @@ c = const.c.cgs
 mu = 1.4  # mean molecular weight
 mpc2 = mp * c**2
 mec2 = me * c**2
-r0 = const.physical_constants["classical electron radius"][0] * u.m
+r0 = 2.8179403205e-15 * u.m  # classical electron radius
 kB = const.k_B.cgs
 hbar = const.hbar.cgs
 
@@ -30,17 +31,26 @@ def ekin(p):
     """Normalised kinetic energy as a function of normalised momentum"""
     return np.sqrt(p**2 + 1) - 1
 
+def Ekin(p, mass):
+    """Normalised kinetic energy as a function of normalised momentum"""
+    return mass * c**2 * (np.sqrt(p**2 + 1) - 1)
+
 def dp_dekin(p):
     """Derivative of normalised momentum wrt normalised kinetic energy."""
-    return 2 * (ekin(p) + 1) / p
+    return np.sqrt(p**2 + 1) / p
+
+def dp_dEkin(p, mass):
+    """Derivative of normalised momentum wrt kinetic energy."""
+    return np.sqrt(p**2 + 1) / (p * mass * c**2)
 
 def diff(p, diff_10GeV, mass=mp):
     """Diffusion coefficient as a function of normalised momentum."""
     return diff_10GeV * ((ekin(p) * mass * c**2 ).to(u.GeV) / (10 * u.GeV)).value**0.5
 
-def t_accel(p, diff_10GeV, mass=mp, vwind=1e8 * u.cm / u.s):
+def t_accel(p, diff_10GeV, vwind, mass=mp):
     """Acceleration time as a function of normalised momentum."""
-    return 8 * diff(p, diff_10GeV, mass) / vwind**2
+    eta_fac = 20/3 /  (c * vwind)
+    return (eta_fac * diff(p, diff_10GeV, mass=mass)).to(u.s)
 
 def standoff_radius(vstar):
     """Standoff radius as a function of stellar velocity. Pre-computed already."""
@@ -52,10 +62,10 @@ def t_diff(p, vstar, diff_10GeV, mass=mp):
     R0 = standoff_radius(vstar)
     return R0**2 / diff(p, diff_10GeV, mass)
 
-def t_adv(vstar):
+def t_adv(vel, vstar):
     """Advection time as a function of stellar velocity."""
     R0 = standoff_radius(vstar)
-    return R0 / vstar
+    return R0 / vel
 
 # losses for protons
 def b_hadr(p, rho):
@@ -66,9 +76,11 @@ def b_hadr(p, rho):
     sigma_pp = 44 * u.mbarn  # total pion cross section
     Kp = 0.5  # inelasticity
     B_hadr = (c * sigma_pp * Kp * rho / (mu * mp)).cgs  # hadronic loss coefficient
-    return B_hadr * ekin(p) * dp_dekin(p)
+    hadr_loss =  B_hadr * Ekin(p, mass=mp) * dp_dEkin(p, mass=mp)
+    hadr_loss = np.where(np.array(p) < 0.8, 0, hadr_loss)
+    return hadr_loss
 
-def b_coul(p, rho):
+def b_coul_p_approx(p, rho):
     """Coulomb loss coefficient for protons, depends on normalised momentum.
 
     This is given as Eq. 12 in Girichidis+2019.
@@ -79,13 +91,30 @@ def b_coul(p, rho):
     B_coul = (coul_coeff * n_e / c / (mp * c)).cgs
     return B_coul * (1 + p**-1.9)
 
-def b_adiab(p, vstar):
+def b_coul_p(p, rho):
+    """
+    Coulomb loss for protons, obtained from Gould(1972a).
+    """
+    sigma_thom = 0.665 * u.barn  # thomson cross section (from NIST)
+    n_e = 0.88 * rho / (mu * mp)
+    plasma_freq = np.sqrt(4 * np.pi * n_e * r0 * c**2).cgs
+    lor_gamma = np.sqrt(1 + p**2)
+    lor_beta = p / lor_gamma
+
+    prefac = (3 * sigma_thom * n_e * mec2 * c / (2 * lor_beta)).cgs
+    log_term = np.log(
+        2 * lor_gamma * lor_beta**2 * mec2 / (hbar * plasma_freq)
+    )
+
+    return (prefac * (log_term - 0.5 * lor_beta**2) * dp_dEkin(p, mass=mp)).to(1 / u.s)
+
+def b_adiab(p, vel, vstar):
     """Adiabatic loss coefficient, depends on normalised momentum.
 
     This is given as Eq. 8 in Girichidis+2019.
 
     Dimensionless as it is normalised by time scaling factor tau0."""
-    t_adv_val = t_adv(vstar)
+    t_adv_val = t_adv(vel, vstar)
     B_adiab = (1 / t_adv_val).cgs
     return B_adiab * p
 
@@ -99,8 +128,8 @@ def b_synch(p, B):
     u_mag = (B**2 / (2 * const.mu0)).to(
         u.erg / u.cm**3
     )  # magnetic field energy density
-    B_synch = (4 / 3 * sigma_thom * c * u_mag / (me * c**2)).cgs
-    return B_synch * p**2 * dp_dekin(p)
+    B_synch = (4 / 3 * sigma_thom * c * u_mag).cgs
+    return (B_synch * dp_dEkin(p, mass=me)).to(1 / u.s)
 
 def b_ic_photon(p):
     """Inverse Compton loss coefficient from background photons, depends on normalised momentum.
@@ -110,53 +139,108 @@ def b_ic_photon(p):
     u_phot = (0.5 * u.eV / u.cm**3).to(
         u.erg / u.cm**3
     )  # photon energy density from ISRF, Mathis 1983
-    B_ic_phot = (4 / 3 * sigma_thom * c * u_phot / (me * c**2)).cgs
-    return B_ic_phot * p**2 * dp_dekin(p)
+    B_ic_phot = (4 / 3 * sigma_thom * c * u_phot).cgs
+    return (B_ic_phot * dp_dEkin(p, mass=me)).to(1 / u.s)
 
-def b_ic_star(p, Tstar):
+def b_ic_star(p, Tstar, r_pos):
     """Inverse Compton loss coefficient from stellar photons, depends on normalised momentum.
 
     Obtained from Eq. 36 from Khangulyan et al. (2014), assuming isotropic scatterin of stellar photons.
 
     Dimensionless as it is normalised by time scaling factor tau0."""
-    coeff = (2 * r0**2 * kB**2 * me / (4 * np.pi**2 * hbar**3) * Tstar**2).cgs # should be in units of 1/s, but we will normalise it by tau0 later, so we can ignore the units for now
-    u_star = (4 * ekin(p) * kB * Tstar / (mec2)).to_value(u.dimensionless_unscaled)  # dimensionless parameter for IC scattering
+    Rstar = 15 * u.Rsun  # stellar radius, assumed to be 20 Rsun for O star
+    dil_factor = ((Rstar / (2 * r_pos))**2).to_value(u.dimensionless_unscaled)  # dilution factor for stellar radiation field
+    coeff = dil_factor * (2 * r0**2 * kB**2 * me / (np.pi * hbar**3) * Tstar**2).cgs # should be in units of 1/s, but we will normalise it by tau0 later, so we can ignore the units for now
+    
+    u_star = (4 * Ekin(p, mass=me) / mec2 * kB * Tstar / mec2).to_value(u.dimensionless_unscaled)  # dimensionless parameter for IC scattering
     c_iso = 4.62
     F_iso = c_iso * u_star * np.log(1 + 0.722 * u_star / c_iso) / (1 + (c_iso * u_star) / 0.822)
 
-    return coeff * F_iso * p**2 * dp_dekin(p)
+    return (coeff * F_iso * dp_dekin(p)).to(1 / u.s)
+
+def b_coul_e(p, rho):
+    """
+    Coulomb scattering for electrons. Obtained from Gould (1972b).
+    """
+    n_e = 0.88 * rho / (mu * mp)
+    plasma_freq = np.sqrt(4 * np.pi * n_e * r0 * c**2).cgs
+    sigma_thom = 0.665 * u.barn  # thomson cross section (from NIST)
+    lor_fac = np.sqrt(1 + p**2)
+    lor_beta = p / lor_fac
+
+    prefac = (3 * sigma_thom * n_e * mec2 * c / (2 * lor_beta) ).cgs
+    log_term = np.log(
+        mec2 * lor_beta * np.sqrt(lor_fac-1) / (hbar * plasma_freq)
+    )
+    second_log_term = np.log(2) * (
+        lor_beta**2 / 2 + 1 / lor_fac
+    ) + 0.5 + ((lor_fac - 1) / (4 * lor_fac))**2
+
+    return prefac * (log_term - second_log_term) * dp_dEkin(p, mass=me)
 
 def tcool_proton(p, rho):
     t_hadr = 1 / np.abs(b_hadr(p, rho))
-    t_coul = 1 / np.abs(b_coul(p, rho))
+    t_coul = 1 / np.abs(b_coul_p(p, rho))
 
     return (1 / t_hadr + 1 / t_coul)**-1 
 
-def tcool_electron(p, B, Tstar):
+def tcool_electron(p, rho, B, Tstar, vstar):
     t_synch = 1 / np.abs(b_synch(p, B))
     t_ic_phot = 1 / np.abs(b_ic_photon(p))
-    t_ic_star = 1 / np.abs(b_ic_star(p, Tstar))
+    r_pos = standoff_radius(vstar)
+    t_ic_star = 1 / np.abs(b_ic_star(p, Tstar, r_pos))
+    t_coul = 1 / np.abs(b_coul_e(p, rho))
 
-    return (1 / t_synch + 1 / t_ic_phot + 1 / t_ic_star)**-1
+    return (1 / t_synch + 1 / t_ic_phot + 1 / t_ic_star + 1 / t_coul)**-1
+
+def get_integral(alpha_inj, p_arr, pmax):
+    s = 3 - alpha_inj
+    t = p_arr / pmax
+    # For negative s, compute upper incomplete gamma through integration
+    def upper_gamma_neg(s, t):
+        """Compute upper incomplete gamma for negative s"""
+        is_scalar = np.isscalar(t)
+        t_arr = np.atleast_1d(t)
+        
+        results = []
+        for ti in t_arr:
+            result, _ = quad(lambda u: u**(s-1) * np.exp(-u), ti, np.inf, epsabs=1e-10)
+            results.append(result)
+        
+        if is_scalar:
+            return results[0]
+        else:
+            return np.array(results)
+    
+    gamma_value = upper_gamma_neg(s, t)
+    return gamma_value
 
 # steady state distribution of protons, assuming hadronic, coulomb, and advection losses.
 # assume a power-law + exponential cutoff injection spectrum
 # steady state spectrum with units of 1 / s
-def f_p_0(alpha_inj, p_arr, rho, vel, pmax):
+def f_p_0(alpha_inj, p_arr, rho, vel, pmax, vstar):
     """Return the steady state spectrum for protons with given injection index."""
     # NB: need to multiply by gamma() since gammainc() is the regularised incomplete gamma function, which divides by gamma() to normalise it.
-    cutoff_part = gammainc(3 - alpha_inj, p_arr / pmax) * gamma(3 - alpha_inj)
+    cutoff_part = get_integral(alpha_inj, p_arr, pmax)
+    if not np.isscalar(p_arr):
+        cutoff_part = cutoff_part[:,None,None,None,None]
+    # print(cutoff_part)
     mom_part = (p_arr / pmax)**(-2) * pmax**(1 - alpha_inj) * cutoff_part
-    loss_part = b_hadr(p_arr, rho) + b_coul(p_arr, rho) + b_adiab(p_arr, vel)
-    return -1 * mom_part / loss_part
+    loss_part = np.abs(b_hadr(p_arr, rho) + b_coul_p(p_arr, rho) + b_adiab(p_arr, vel, vstar))
+    mom_rescale = ((mp * c)**(-alpha_inj + 1))
+    return mom_part / loss_part * mom_rescale
 
-def f_e_0(alpha_inj, p_arr, B, Tstar, vel, pmax):
+def f_e_0(alpha_inj, p_arr, rho, B, Tstar, vel, r_pos, pmax, vstar):
     """Return the steady state spectrum for electrons with given injection index."""
     # NB: need to multiply by gamma() since gammainc() is the regularised incomplete gamma function, which divides by gamma() to normalise it.
-    cutoff_part = gammainc(3 - alpha_inj, p_arr / pmax) * gamma(3 - alpha_inj)
+    cutoff_part = get_integral(alpha_inj, p_arr, pmax)
+    if not np.isscalar(p_arr):
+        cutoff_part = cutoff_part[:,None,None,None,None]
+    # print(cutoff_part)
     mom_part = (p_arr / pmax)**(-2) * pmax**(1 - alpha_inj) * cutoff_part
-    loss_part = b_synch(p_arr, B) + b_ic_photon(p_arr) + b_ic_star(p_arr, Tstar) + b_adiab(p_arr, vel)
-    return -1 * mom_part / loss_part
+    loss_part = np.abs(b_synch(p_arr, B) + b_ic_photon(p_arr) + b_ic_star(p_arr, Tstar, r_pos) + b_coul_e(p_arr, rho) + b_adiab(p_arr, vel, vstar))
+    mom_rescale = (me * c)**(-alpha_inj + 1)
+    return mom_part / loss_part * mom_rescale
 
 def ep_ratio():
     """Calculate the electron to proton ratio at 10 GeV, based on Cummings et al. 2016."""
@@ -169,7 +253,7 @@ def ep_ratio():
     # pp0 = np.sqrt((ep0 + 1) ** 2 - 1)
     # pe0 = np.sqrt((ee0 + 1) ** 2 - 1)
     print(f"ep ratio parameters: {Kep:.2f}, {pp0:.3f}, {pe0:.3f}")
-    return Kep * (mp / me), pp0, pe0
+    return Kep * (me / mp), pp0, pe0
 
 
 # below are functions to calculation synchrotron emitting electrons

@@ -55,7 +55,7 @@ def get_transformed_data(pf : h5py.File, field : str, blist):
         geff_data = pf["geff"][()][blist]
         xs_data = (geff_data + 1) * shma_data**2 / (2 + (geff_data - 1) * shma_data**2)
         field_data = 3 * xs_data / (xs_data - 1)
-        field_data[shma_data < 2] = np.nan
+        field_data[shma_data < 1.0] = np.nan
     elif field == "crac":
         if "crac" in list(pf.keys()):
             field_data = pf["crac"][()][blist]
@@ -67,7 +67,7 @@ def get_transformed_data(pf : h5py.File, field : str, blist):
         #     craccel_mgob_data = craccel_mgob(np.deg2rad(mgob_data))
 
         #     field_data = craccel_shma_data * craccel_mgob_data
-        #     field_data[shma_data < 2] = np.nan
+        #     field_data[shma_data < 1.0] = np.nan
     else:
         field_data = pf[field][()][blist]
 

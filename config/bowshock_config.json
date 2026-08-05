@@ -1,63 +1,63 @@
 {
-    "config" : {
+    "config": {
         "ISM-v40-LDiff": {
-            "sim_dir":"ISM-v40-LDiff",
-            "mstar":20,
-            "vstar":40,
-            "env_name":"ISM",
-            "kappa_10":3e25,
-            "color":"royalblue",
-            "label" : "ISM-v40-LDiff",
-            "pmax_prot" : 6.32739812e+04,
-            "pmax_electr" : 77764.96372609
+            "sim_dir": "ISM-v40-LDiff",
+            "mstar": 20,
+            "vstar": 40,
+            "env_name": "ISM",
+            "kappa_10": 3e24,
+            "color": "royalblue",
+            "label": "ISM-v40-LDiff",
+            "pmax_prot": 1.16345901e+05,
+            "pmax_electr": 712365.44761185
         },
         "ISM-v40-MDiff": {
-            "sim_dir":"ISM-v40-MDiff",
-            "mstar":20,
-            "vstar":40,
-            "env_name":"ISM",
-            "kappa_10":3e24,
-            "color":"forestgreen",
-            "label" : "ISM-v40-MDiff",
-            "pmax_prot" : 1.05213617e+03,
-            "pmax_electr" : 30337.17028969
+            "sim_dir": "ISM-v40-MDiff",
+            "mstar": 20,
+            "vstar": 40,
+            "env_name": "ISM",
+            "kappa_10": 3e25,
+            "color": "forestgreen",
+            "label": "ISM-v40-MDiff",
+            "pmax_prot": 1.93380562e+03,
+            "pmax_electr": 142991.58638781
         },
         "ISM-v40-HDiff": {
-            "sim_dir":"ISM-v40-HDiff",
-            "mstar":20,
-            "vstar":40,
-            "env_name":"ISM",
-            "kappa_10":3e26,
-            "color":"indianred",
-            "label" : "ISM-v40-HDiff",
-            "pmax_prot" : 1.15656719e+01,
-            "pmax_electr" : 10024.02532699
+            "sim_dir": "ISM-v40-HDiff",
+            "mstar": 20,
+            "vstar": 40,
+            "env_name": "ISM",
+            "kappa_10": 3e26,
+            "color": "indianred",
+            "label": "ISM-v40-HDiff",
+            "pmax_prot": 1.94307340e+01,
+            "pmax_electr": 21761.66565215
         },
         "ISM-v100-MDiff": {
-            "sim_dir":"ISM-v100-MDiff",
-            "mstar":20,
-            "vstar":100,
-            "env_name":"ISM",
-            "kappa_10":3e25,
-            "color":"blueviolet",
-            "label" : "ISM-v100-MDiff",
-            "pmax_prot" : 1.70069182e+02,
-            "pmax_electr" :30337.17028969
+            "sim_dir": "ISM-v100-MDiff",
+            "mstar": 20,
+            "vstar": 100,
+            "env_name": "ISM",
+            "kappa_10": 3e25,
+            "color": "blueviolet",
+            "label": "ISM-v100-MDiff",
+            "pmax_prot": 1.83031812e+03,
+            "pmax_electr": 141196.48082877
         },
         "ISM-v40-MHD": {
-            "sim_dir":"ISM-v40-MHD",
-            "mstar":20,
-            "vstar":40,
-            "env_name":"ISM",
-            "kappa_10":"None",
-            "color":"dimgray",
-            "label" : "ISM-v40-MHD",
-            "pmax_prot" : "None",
-            "pmax_electr" : "None"
+            "sim_dir": "ISM-v40-MHD",
+            "mstar": 20,
+            "vstar": 40,
+            "env_name": "ISM",
+            "kappa_10": "None",
+            "color": "dimgray",
+            "label": "ISM-v40-MHD",
+            "pmax_prot": "None",
+            "pmax_electr": "None"
         }
     },
-    "shock_labels" : {
-        "outer" : "Outer Shock",
-        "term" : "Termination Shock"
+    "shock_labels": {
+        "outer": "Outer Shock",
+        "term": "Termination Shock"
     }
 }
