@@ -7,8 +7,9 @@ import json
 
 import astropy.units as u
 import astropy.constants as const
-from scipy.special import gammainc, gamma
+from scipy.special import gammainc, gamma, exp1
 from scipy.integrate import quad
+from math import factorial
 
 
 # energy parameters
@@ -192,25 +193,83 @@ def tcool_electron(p, rho, B, Tstar, vstar):
 
     return (1 / t_synch + 1 / t_ic_phot + 1 / t_ic_star + 1 / t_coul)**-1
 
+def _gamma_upper_nonneg_int(n, t):
+    """Upper incomplete gamma Gamma(-n, t) for non-negative integer n, via the
+    closed form in terms of the exponential integral E1 (DLMF 8.4.13 / A&S 6.5.15):
+
+        Gamma(-n, t) = (-1)^n / n! * [E1(t) - exp(-t) * sum_{j=0}^{n-1} (-1)^j * j! / t^(j+1)]
+
+    Valid, and numerically well-behaved, for any t > 0 -- including t so small that
+    scipy.integrate.quad's direct numerical integration of u^(s-1)*exp(-u) fails to
+    converge (s = -n is itself a non-generic case: Gamma(s) has a pole there, so the
+    generic non-integer-s series below does not apply either).
+    """
+    total = exp1(t)
+    inner = np.zeros_like(t)
+    fact_j = 1.0
+    for j in range(n):
+        inner = inner + (-1) ** j * fact_j / t ** (j + 1)
+        fact_j *= j + 1
+    total = total - np.exp(-t) * inner
+    return (-1) ** n / factorial(n) * total
+
+
 def get_integral(alpha_inj, p_arr, pmax):
     s = 3 - alpha_inj
     t = p_arr / pmax
     # For negative s, compute upper incomplete gamma through integration
-    def upper_gamma_neg(s, t):
-        """Compute upper incomplete gamma for negative s"""
+    def upper_gamma_neg(s, t, t_series_switch=1e-2, nterms=30):
+        """Compute upper incomplete gamma Gamma(s, t) for s <= 0.
+
+        scipy.integrate.quad is used directly for t >~ t_series_switch, where it is
+        accurate. For smaller t (as happens when p_arr/pmax << 1, e.g. very high
+        pmax cases), quad's adaptive integration of the near-singular, slowly
+        decaying integrand u^(s-1)*exp(-u) becomes unreliable or fails to converge
+        (it can even return unphysical negative values there).
+
+        s = 3 - alpha_inj lands on a non-positive integer whenever alpha_inj is an
+        integer (e.g. alpha_inj = 4 -> s = -1); Gamma(s) itself has a pole there, so
+        that case is handled separately via _gamma_upper_nonneg_int (exact for any
+        t > 0) rather than by the Gamma(s) - gamma_lower(s, t) series below, which
+        assumes non-integer s. For the generic non-integer-s, small-t case we use
+            Gamma(s, t) = Gamma(s) - gamma_lower(s, t)
+        with gamma_lower(s, t) evaluated via its (rapidly convergent for small t)
+        power series
+            gamma_lower(s, t) = t^s * sum_{k=0}^inf (-t)^k / (k! * (s + k))
+        This matches quad to high precision everywhere quad itself converges, and
+        stays well-behaved below that.
+        """
         is_scalar = np.isscalar(t)
-        t_arr = np.atleast_1d(t)
-        
-        results = []
-        for ti in t_arr:
-            result, _ = quad(lambda u: u**(s-1) * np.exp(-u), ti, np.inf, epsabs=1e-10)
-            results.append(result)
-        
+        t_arr = np.atleast_1d(t).astype(float)
+
+        results = np.empty_like(t_arr)
+
+        # s lands on a non-positive integer (within floating point tolerance)
+        # whenever alpha_inj is an integer -- Gamma(s) itself is a pole there.
+        if np.isclose(s, np.round(s)) and s <= 0:
+            n = int(round(-s))
+            results[:] = _gamma_upper_nonneg_int(n, t_arr)
+            return results[0] if is_scalar else results
+
+        gamma_s = gamma(s)
+        small = t_arr < t_series_switch
+        if np.any(small):
+            k = np.arange(nterms)
+            # sum_k (-t)^k / (k! * (s+k)), broadcast over t and k
+            terms = (-t_arr[small, None]) ** k / np.array([factorial(ki) for ki in k]) / (s + k)
+            gamma_lower = t_arr[small] ** s * terms.sum(axis=1)
+            results[small] = gamma_s - gamma_lower
+
+        large = ~small
+        for idx in np.where(large)[0]:
+            result, _ = quad(lambda u: u**(s-1) * np.exp(-u), t_arr[idx], np.inf, epsabs=1e-10)
+            results[idx] = result
+
         if is_scalar:
             return results[0]
         else:
-            return np.array(results)
-    
+            return results
+
     gamma_value = upper_gamma_neg(s, t)
     return gamma_value
 

@@ -7,8 +7,9 @@ import json
 
 import astropy.units as u
 import astropy.constants as const
-from scipy.special import gammainc, gamma
+from scipy.special import gammainc, gamma, exp1
 from scipy.integrate import quad
+from math import factorial
 
 
 # energy parameters
@@ -197,21 +198,51 @@ def get_integral(alpha_inj, p_arr, pmax):
     s = 3 - alpha_inj
     t = p_arr / pmax
     # For negative s, compute upper incomplete gamma through integration
-    def upper_gamma_neg(s, t):
-        """Compute upper incomplete gamma for negative s"""
+    def upper_gamma_neg(s, t, t_series_switch=1e-2, nterms=30):
+        """Compute upper incomplete gamma Gamma(s, t) for negative, non-integer s.
+
+        scipy.integrate.quad is used directly for t >~ t_series_switch, where it is
+        accurate. For smaller t (as happens when p_arr/pmax << 1, e.g. very high
+        pmax cases), quad's adaptive integration of the near-singular, slowly
+        decaying integrand u^(s-1)*exp(-u) becomes unreliable or fails to converge
+        (it can even return unphysical negative values there). In that regime we
+        instead use Gamma(s, t) = Gamma(s) - gamma_lower(s, t), with gamma_lower(s, t)
+        evaluated via its (rapidly convergent for small t) power series
+            gamma_lower(s, t) = t^s * sum_{k=0}^inf (-t)^k / (k! * (s + k))
+        This matches quad to high precision everywhere quad itself converges, and
+        stays well-behaved below that.
+        """
         is_scalar = np.isscalar(t)
-        t_arr = np.atleast_1d(t)
-        
-        results = []
-        for ti in t_arr:
-            result, _ = quad(lambda u: u**(s-1) * np.exp(-u), ti, np.inf, epsabs=1e-10)
-            results.append(result)
-        
+        # NB: callers here pass t shaped like (N, 1, 1, 1, 1) and rely on the
+        # trailing singleton axes being dropped, mirroring the original
+        # elementwise-over-axis-0 loop (each `ti` was an (1,1,1,1)-shaped
+        # array that quad() implicitly treated as scalar) followed by
+        # np.array(results), which collapsed to shape (N,). We replicate
+        # that explicitly: flatten to 1D for the computation, then return
+        # shape (N,).
+        t_arr = np.atleast_1d(t).astype(float).reshape(-1)
+
+        gamma_s = gamma(s)
+        results = np.empty_like(t_arr)
+
+        small = t_arr < t_series_switch
+        if np.any(small):
+            k = np.arange(nterms)
+            # sum_k (-t)^k / (k! * (s+k)), broadcast over t and k
+            terms = (-t_arr[small, None]) ** k / np.array([factorial(ki) for ki in k]) / (s + k)
+            gamma_lower = t_arr[small] ** s * terms.sum(axis=1)
+            results[small] = gamma_s - gamma_lower
+
+        large = ~small
+        for idx in np.where(large)[0]:
+            result, _ = quad(lambda u: u**(s-1) * np.exp(-u), t_arr[idx], np.inf, epsabs=1e-10)
+            results[idx] = result
+
         if is_scalar:
             return results[0]
         else:
-            return np.array(results)
-    
+            return results
+
     gamma_value = upper_gamma_neg(s, t)
     return gamma_value
 

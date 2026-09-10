@@ -78,7 +78,7 @@ args = parser.parse_args()
 # pp_arr = (pp_arr / (mp * c)).to_value(
 #     u.dimensionless_unscaled
 # )  # normalised momentum wrt protons
-pp_arr = np.logspace(0, 4, 200)
+pp_arr = np.logspace(0., 5, 200)
 print(
     f"Minimum & maximum of normalised momentum (protons): {(pp_arr.min() * mp * c**2).to(u.GeV):.5e}, {(pp_arr.max() * mp * c**2).to(u.GeV):.5e}"
 )
@@ -517,98 +517,6 @@ for arg in args_list:
     del ecr_p
     del ncr_e_val
 
-    # # specific synchrotron intensity is in -> E dN/(dV dt), in units of erg / s / Hz / cm^3
-    # # NB: astropy doesnt properly take care of cgs units with magnetic fields, so we convert them to values instead and add units later
-    # synch_coeff = (
-    #     np.sqrt(3)
-    #     * Blos_data  # LoS B-field in Gauss
-    #     * const.e.gauss.value**3
-    #     / (const.m_e.cgs.value * const.c.cgs.value**2)
-    # )
-
-    # synch_lum_per_freq = []
-    # for ifreq, synch_freq in tqdm(
-    #     enumerate(synch_freq_grid), total=len(synch_freq_grid)
-    # ):
-    #     # if ifreq % 2 != 0:
-    #     #     continue
-
-    #     # synchrotron intensity in  (u.erg * u.s**-1 * u.Hz**-1 * u.cm**-3)
-    #     synch_intens_data = (
-    #         synch_coeff
-    #         * pf["encr"][()][blist]  # specific CR energy
-    #         * pf["dens"][()][blist]  # density
-    #     ) / (
-    #         (
-    #             (
-    #                 10.0
-    #                 ** f_log10_ensynchratio(
-    #                     (np.log10(dens_data), np.log10(Blos_data)),
-    #                 )[..., ifreq]
-    #             )
-    #             * u.GeV
-    #         ).to_value(u.erg)
-    #     )  # need to convert this to erg
-
-    #     for t in times_to_store:
-    #         if np.isclose(t, time.to_value(u.kyr), atol=0.1):  # in 30 kyr intervals
-    #             print(t, time.to_value(u.kyr))
-    #             synch_idx = np.digitize(1.5 * u.GHz, synch_freq_grid, right=True)
-    #             if ifreq != synch_idx:
-    #                 continue
-    #             synch_intens_sl = flash_amr_tools.get_slice(
-    #                 synch_intens_data * synch_freq.to_value(u.Hz),
-    #                 pos=0.0,
-    #                 axis=2,
-    #                 ref_lvl=ref_lvl,
-    #                 bbox=bbox,
-    #                 bsize=bsize,
-    #                 brefs=brefs,
-    #                 bns=bns,
-    #             )
-    #             # write data to h5py file
-    #             with h5py.File(
-    #                 f"{data_dir}/emission_data_synch_timecorrected_ae{args.alpha_inj_e}.h5",
-    #                 "a",
-    #             ) as pfo:
-    #                 sim_gr = (
-    #                     pfo.create_group(sim_name)
-    #                     if sim_name not in pfo.keys()
-    #                     else pfo[sim_name]
-    #                 )
-
-    #                 synch_sl_dr = (
-    #                     sim_gr["slices"]
-    #                     if "slices" in sim_gr.keys()
-    #                     else sim_gr.create_group("slices")
-    #                 )
-
-    #                 if f"t{t}kyr" in synch_sl_dr.keys():
-    #                     del synch_sl_dr[f"t{t}kyr"]
-    #                 if f"t{t}_bbox" in synch_sl_dr.keys():
-    #                     del synch_sl_dr[f"t{t}_bbox"]
-
-    #                 synch_sl_dr.create_dataset(f"t{t}kyr", data=synch_intens_sl)
-    #                 synch_sl_dr.create_dataset(f"t{t}_bbox", data=bbox)
-
-    #             del synch_intens_sl
-
-    #     synch_lum_per_freq.append(
-    #         np.sum(
-    #             (synch_intens_data * (u.erg / u.s / u.Hz / u.cm**3)).to_value(
-    #                 u.erg / u.s / u.Hz / u.pc**3
-    #             )
-    #             * cell_size_data**3,
-    #             axis=(0, 1, 2, 3),
-    #         )
-    #     )
-
-    #     del synch_intens_data
-
-    # del cell_size_data
-    # del synch_coeff
-    # del Blos_data
-
     print(np.array(synch_lum_per_freq) * synch_freqs.to_value(u.Hz))
 
     times.append(time.to_value(u.s))
@@ -632,7 +540,7 @@ synch_lum_arr = synch_lum_arr[np.argsort(times), :]
 times = np.sort(times)
 
 # write data to h5py file
-with h5py.File(f"{data_dir}/emission_data_synch.h5", "a") as pf:
+with h5py.File(f"{data_dir}/emission_data_synch_term.h5", "a") as pf:
     sim_gr = pf.create_group(sim_name) if sim_name not in pf.keys() else pf[sim_name]
 
     if "times" in pf[sim_name].keys():

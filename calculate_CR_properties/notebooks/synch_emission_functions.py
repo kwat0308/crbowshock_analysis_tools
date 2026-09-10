@@ -9,6 +9,7 @@ import astropy.units as u
 import astropy.constants as const
 from scipy.special import gammainc, gamma
 from scipy.integrate import quad
+from math import factorial
 
 
 # energy parameters
@@ -31,9 +32,17 @@ def ekin(p):
     """Normalised kinetic energy as a function of normalised momentum"""
     return np.sqrt(p**2 + 1) - 1
 
+def Ekin(p, mass):
+    """Normalised kinetic energy as a function of normalised momentum"""
+    return mass * c**2 * (np.sqrt(p**2 + 1) - 1)
+
 def dp_dekin(p):
     """Derivative of normalised momentum wrt normalised kinetic energy."""
-    return 2 * (ekin(p) + 1) / p
+    return np.sqrt(p**2 + 1) / p
+
+def dp_dEkin(p, mass):
+    """Derivative of normalised momentum wrt kinetic energy."""
+    return np.sqrt(p**2 + 1) / (p * mass * c**2)
 
 def diff(p, diff_10GeV, mass=mp):
     """Diffusion coefficient as a function of normalised momentum."""
@@ -67,7 +76,9 @@ def b_hadr(p, rho):
     sigma_pp = 44 * u.mbarn  # total pion cross section
     Kp = 0.5  # inelasticity
     B_hadr = (c * sigma_pp * Kp * rho / (mu * mp)).cgs  # hadronic loss coefficient
-    return B_hadr * ekin(p) * dp_dekin(p)
+    hadr_loss =  B_hadr * Ekin(p, mass=mp) * dp_dEkin(p, mass=mp)
+    hadr_loss = np.where(np.array(p) < 0.8, 0, hadr_loss)
+    return hadr_loss
 
 def b_coul_p_approx(p, rho):
     """Coulomb loss coefficient for protons, depends on normalised momentum.
@@ -90,12 +101,12 @@ def b_coul_p(p, rho):
     lor_gamma = np.sqrt(1 + p**2)
     lor_beta = p / lor_gamma
 
-    prefac = (3 * sigma_thom * n_e * mec2 * c / (2 * lor_beta)/ (mp * c**2)).cgs
+    prefac = (3 * sigma_thom * n_e * mec2 * c / (2 * lor_beta)).cgs
     log_term = np.log(
         2 * lor_gamma * lor_beta**2 * mec2 / (hbar * plasma_freq)
     )
 
-    return prefac * (log_term - 0.5 * lor_beta**2) * dp_dekin(p)
+    return (prefac * (log_term - 0.5 * lor_beta**2) * dp_dEkin(p, mass=mp)).to(1 / u.s)
 
 def b_adiab(p, vel, vstar):
     """Adiabatic loss coefficient, depends on normalised momentum.
@@ -117,8 +128,8 @@ def b_synch(p, B):
     u_mag = (B**2 / (2 * const.mu0)).to(
         u.erg / u.cm**3
     )  # magnetic field energy density
-    B_synch = (4 / 3 * sigma_thom * c * u_mag / (me * c**2)).cgs
-    return B_synch * p**2 * dp_dekin(p)
+    B_synch = (4 / 3 * sigma_thom * c * u_mag).cgs
+    return (B_synch * dp_dEkin(p, mass=me)).to(1 / u.s)
 
 def b_ic_photon(p):
     """Inverse Compton loss coefficient from background photons, depends on normalised momentum.
@@ -128,8 +139,8 @@ def b_ic_photon(p):
     u_phot = (0.5 * u.eV / u.cm**3).to(
         u.erg / u.cm**3
     )  # photon energy density from ISRF, Mathis 1983
-    B_ic_phot = (4 / 3 * sigma_thom * c * u_phot / (me * c**2)).cgs
-    return B_ic_phot * p**2 * dp_dekin(p)
+    B_ic_phot = (4 / 3 * sigma_thom * c * u_phot).cgs
+    return (B_ic_phot * dp_dEkin(p, mass=me)).to(1 / u.s)
 
 def b_ic_star(p, Tstar, r_pos):
     """Inverse Compton loss coefficient from stellar photons, depends on normalised momentum.
@@ -141,11 +152,11 @@ def b_ic_star(p, Tstar, r_pos):
     dil_factor = ((Rstar / (2 * r_pos))**2).to_value(u.dimensionless_unscaled)  # dilution factor for stellar radiation field
     coeff = dil_factor * (2 * r0**2 * kB**2 * me / (np.pi * hbar**3) * Tstar**2).cgs # should be in units of 1/s, but we will normalise it by tau0 later, so we can ignore the units for now
     
-    u_star = (4 * ekin(p) * kB * Tstar / (mec2)).to_value(u.dimensionless_unscaled)  # dimensionless parameter for IC scattering
+    u_star = (4 * Ekin(p, mass=me) / mec2 * kB * Tstar / mec2).to_value(u.dimensionless_unscaled)  # dimensionless parameter for IC scattering
     c_iso = 4.62
     F_iso = c_iso * u_star * np.log(1 + 0.722 * u_star / c_iso) / (1 + (c_iso * u_star) / 0.822)
 
-    return coeff * F_iso * dp_dekin(p)
+    return (coeff * F_iso * dp_dekin(p)).to(1 / u.s)
 
 def b_coul_e(p, rho):
     """
@@ -157,7 +168,7 @@ def b_coul_e(p, rho):
     lor_fac = np.sqrt(1 + p**2)
     lor_beta = p / lor_fac
 
-    prefac = (3 * sigma_thom * n_e * mec2 * c / (2 * lor_beta) / (mec2)).cgs
+    prefac = (3 * sigma_thom * n_e * mec2 * c / (2 * lor_beta) ).cgs
     log_term = np.log(
         mec2 * lor_beta * np.sqrt(lor_fac-1) / (hbar * plasma_freq)
     )
@@ -165,7 +176,7 @@ def b_coul_e(p, rho):
         lor_beta**2 / 2 + 1 / lor_fac
     ) + 0.5 + ((lor_fac - 1) / (4 * lor_fac))**2
 
-    return prefac * (log_term - second_log_term) * dp_dekin(p)
+    return prefac * (log_term - second_log_term) * dp_dEkin(p, mass=me)
 
 def tcool_proton(p, rho):
     t_hadr = 1 / np.abs(b_hadr(p, rho))
@@ -186,21 +197,44 @@ def get_integral(alpha_inj, p_arr, pmax):
     s = 3 - alpha_inj
     t = p_arr / pmax
     # For negative s, compute upper incomplete gamma through integration
-    def upper_gamma_neg(s, t):
-        """Compute upper incomplete gamma for negative s"""
+    def upper_gamma_neg(s, t, t_series_switch=1e-2, nterms=30):
+        """Compute upper incomplete gamma Gamma(s, t) for negative, non-integer s.
+
+        scipy.integrate.quad is used directly for t >~ t_series_switch, where it is
+        accurate. For smaller t (as happens when p_arr/pmax << 1, e.g. very high
+        pmax cases), quad's adaptive integration of the near-singular, slowly
+        decaying integrand u^(s-1)*exp(-u) becomes unreliable or fails to converge
+        (it can even return unphysical negative values there). In that regime we
+        instead use Gamma(s, t) = Gamma(s) - gamma_lower(s, t), with gamma_lower(s, t)
+        evaluated via its (rapidly convergent for small t) power series
+            gamma_lower(s, t) = t^s * sum_{k=0}^inf (-t)^k / (k! * (s + k))
+        This matches quad to high precision everywhere quad itself converges, and
+        stays well-behaved below that.
+        """
         is_scalar = np.isscalar(t)
-        t_arr = np.atleast_1d(t)
-        
-        results = []
-        for ti in t_arr:
-            result, _ = quad(lambda u: u**(s-1) * np.exp(-u), ti, np.inf, epsabs=1e-10)
-            results.append(result)
-        
+        t_arr = np.atleast_1d(t).astype(float)
+
+        gamma_s = gamma(s)
+        results = np.empty_like(t_arr)
+
+        small = t_arr < t_series_switch
+        if np.any(small):
+            k = np.arange(nterms)
+            # sum_k (-t)^k / (k! * (s+k)), broadcast over t and k
+            terms = (-t_arr[small, None]) ** k / np.array([factorial(ki) for ki in k]) / (s + k)
+            gamma_lower = t_arr[small] ** s * terms.sum(axis=1)
+            results[small] = gamma_s - gamma_lower
+
+        large = ~small
+        for idx in np.where(large)[0]:
+            result, _ = quad(lambda u: u**(s-1) * np.exp(-u), t_arr[idx], np.inf, epsabs=1e-10)
+            results[idx] = result
+
         if is_scalar:
             return results[0]
         else:
-            return np.array(results)
-    
+            return results
+
     gamma_value = upper_gamma_neg(s, t)
     return gamma_value
 
@@ -211,8 +245,8 @@ def f_p_0(alpha_inj, p_arr, rho, vel, pmax, vstar):
     """Return the steady state spectrum for protons with given injection index."""
     # NB: need to multiply by gamma() since gammainc() is the regularised incomplete gamma function, which divides by gamma() to normalise it.
     cutoff_part = get_integral(alpha_inj, p_arr, pmax)
-    if not np.isscalar(p_arr):
-        cutoff_part = cutoff_part[:,None,None,None,None]
+    # if not np.isscalar(p_arr):
+    #     cutoff_part = cutoff_part[:,None,None,None,None]
     # print(cutoff_part)
     mom_part = (p_arr / pmax)**(-2) * pmax**(1 - alpha_inj) * cutoff_part
     loss_part = np.abs(b_hadr(p_arr, rho) + b_coul_p(p_arr, rho) + b_adiab(p_arr, vel, vstar))
@@ -223,8 +257,8 @@ def f_e_0(alpha_inj, p_arr, rho, B, Tstar, vel, r_pos, pmax, vstar):
     """Return the steady state spectrum for electrons with given injection index."""
     # NB: need to multiply by gamma() since gammainc() is the regularised incomplete gamma function, which divides by gamma() to normalise it.
     cutoff_part = get_integral(alpha_inj, p_arr, pmax)
-    if not np.isscalar(p_arr):
-        cutoff_part = cutoff_part[:,None,None,None,None]
+    # if not np.isscalar(p_arr):
+    #     cutoff_part = cutoff_part[:,None,None,None,None]
     # print(cutoff_part)
     mom_part = (p_arr / pmax)**(-2) * pmax**(1 - alpha_inj) * cutoff_part
     loss_part = np.abs(b_synch(p_arr, B) + b_ic_photon(p_arr) + b_ic_star(p_arr, Tstar, r_pos) + b_coul_e(p_arr, rho) + b_adiab(p_arr, vel, vstar))

@@ -13,19 +13,19 @@
 # python calculate_gamma_intensity.py -S ISM-v40-LDiff
 # python calculate_gamma_intensity.py -S ISM-v40-MDiff
 # python calculate_gamma_intensity.py -S ISM-v40-HDiff
-python calculate_gamma_intensity.py -S ISM-v100-MDiff
+# python calculate_gamma_intensity.py -S ISM-v100-MDiff
 
 # python calculate_spectra.py -S ISM-v40-MDiff
-# python calculate_synch_intensity.py -S ISM-v40-MDiff --chunk_size=20
+python calculate_synch_intensity.py -S ISM-v40-MDiff --chunk_size=20
 
 # python calculate_spectra.py -S ISM-v40-LDiff
-# python calculate_synch_intensity.py -S ISM-v40-LDiff --chunk_size=20
+python calculate_synch_intensity.py -S ISM-v40-LDiff --chunk_size=20
 
 # python calculate_spectra.py -S ISM-v40-HDiff
-# python calculate_synch_intensity.py -S ISM-v40-HDiff --chunk_size=20
+python calculate_synch_intensity.py -S ISM-v40-HDiff --chunk_size=20
 
 
-python calculate_spectra.py -S ISM-v100-MDiff --chunk_size=10
+# python calculate_spectra.py -S ISM-v100-MDiff --chunk_size=10
 python calculate_synch_intensity.py -S ISM-v100-MDiff --chunk_size=10
 
 # python calculate_cooling_rates.py -S ISM-v40-LDiff --chunk_size=20
