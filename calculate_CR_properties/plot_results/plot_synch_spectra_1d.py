@@ -136,6 +136,6 @@ ax.legend(
 
 ax.set_ylim(ymin=1e-35, ymax=1e-18)
 
-fig.tight_layout()
-plt.savefig("/home/kwatanabe/Projects/cr-bowshocks/figures/emission_revised/synch_kern_electron_spec_1d.pdf", dpi=200, bbox_inches='tight')
-plt.show()
+# fig.tight_layout()
+# plt.savefig("/home/kwatanabe/Projects/cr-bowshocks/figures/emission_revised/synch_kern_electron_spec_1d.pdf", dpi=200, bbox_inches='tight')
+# plt.show()
